@@ -22,6 +22,12 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
+    @Published var volume: Float = 1.0 {
+        didSet {
+            player?.volume = volume
+        }
+    }
+
     private var player: AVAudioPlayer?
     private var timer: Timer?
     

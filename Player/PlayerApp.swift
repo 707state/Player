@@ -19,5 +19,23 @@ struct PlayerApp: App {
                     appDelegate.player = player
                 }
         }
+        .commands{
+            CommandMenu("Playback"){
+                Button(player.isPlaying ? "Pause" : "Play"){
+                    if player.isPlaying{
+                        player.pause()
+                    }else{
+                        player.resume()
+                    }
+                }
+                .keyboardShortcut(.space,modifiers: [])
+            }
+            CommandMenu("Next"){
+                Button("Next"){
+                    player.playNext()
+                }
+                .keyboardShortcut("n",modifiers: [.command])
+            }
+        }
     }
 }

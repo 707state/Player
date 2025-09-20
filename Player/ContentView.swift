@@ -97,6 +97,10 @@ struct PlayerPanel: View {
                     Image(systemName: "forward.fill")
                 }
             }
+            Slider(value: $player.volume, in: 0...1)
+                .frame(width: 120, height: 20)   // 宽度120，高度20
+                .padding(.horizontal, 4)
+
         }
         .padding()
     }
