@@ -9,7 +9,7 @@ import SwiftUI
 import AVFoundation
 
 struct ContentView: View {
-    @StateObject private var player = MusicModel()
+    @EnvironmentObject var player: MusicModel
     
     var body: some View {
         NavigationSplitView {
@@ -28,7 +28,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                .frame(minWidth: 150)     // 设置最小宽度
+                .frame(minWidth: 150)
             } else {
                 Text("Please select music directory")
                     .frame(minWidth: 150)
@@ -55,7 +55,13 @@ struct ContentView: View {
     }
 }
 
-// 将右侧播放器单独封装
+func formatTime(_ time: TimeInterval) -> String {
+    let minutes = Int(time) / 60
+    let seconds = Int(time) % 60
+    return String(format: "%02d:%02d", minutes, seconds)
+}
+
+// Player interface
 struct PlayerPanel: View {
     @ObservedObject var player: MusicModel
     var body: some View {
@@ -72,7 +78,12 @@ struct PlayerPanel: View {
                 set: { player.seek(to: $0) }),
                    in: 0...(player.duration))
             .disabled(player.currentFile == nil)
-            
+            HStack {
+                Text(formatTime(player.currentTime))
+                Spacer()
+                Text(formatTime(player.duration))
+            }
+            .font(.caption)
             HStack(spacing: 40) {
                 Button {
                     if player.isPlaying { player.pause() } else { player.resume() }
@@ -82,11 +93,11 @@ struct PlayerPanel: View {
                 Button { player.stop() } label: {
                     Image(systemName: "stop.fill")
                 }
+                Button { player.playNext() } label: {
+                    Image(systemName: "forward.fill")
+                }
             }
         }
         .padding()
     }
-}
-#Preview {
-    ContentView()
 }

@@ -13,7 +13,10 @@ struct FileNode: Identifiable {
     var isDirectory: Bool
     var children: [FileNode]?
 }
-class MusicModel: ObservableObject{
+class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
+    // Only one MusicModel in this app!
+    static let shared = MusicModel()
+    
     @Published var rootNode: FileNode?
     @Published var currentFile: URL?
     @Published var isPlaying = false
@@ -22,12 +25,30 @@ class MusicModel: ObservableObject{
     private var player: AVAudioPlayer?
     private var timer: Timer?
     
+    // Flattend file list for next play
+    private var allFiles: [URL] = []
     // Recursive
     func loadDirectoryTree(url: URL) {
-        rootNode = buildNode(for: url)
+        let url_=url;
+        DispatchQueue.global(qos: .userInitiated).async {
+                let root = self.buildNode(for: url_)
+                DispatchQueue.main.async {
+                    self.rootNode = root
+                    self.allFiles=self.collectAllFiles(from: root)
+                }
+            }
+    }
+    // Traverse whole tree
+    private func collectAllFiles(from node: FileNode?) -> [URL] {
+        guard let node = node else { return [] }
+        if node.isDirectory {
+            return node.children?.flatMap { collectAllFiles(from: $0) } ?? []
+        } else {
+            return [node.url]
+        }
     }
     
-    private func buildNode(for url: URL) -> FileNode {
+    func buildNode(for url: URL) -> FileNode {
         var children: [FileNode] = []
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
@@ -60,6 +81,7 @@ class MusicModel: ObservableObject{
         stop()
         do {
             player = try AVAudioPlayer(contentsOf: file)
+            player?.delegate = self
             player?.prepareToPlay()
             player?.play()
             duration = player?.duration ?? 0
@@ -79,6 +101,21 @@ class MusicModel: ObservableObject{
     func resume() {
         player?.play()
         isPlaying = true
+    }
+    
+    func playNext() {
+        guard !allFiles.isEmpty else { return }
+        var nextFile: URL
+        repeat {
+            nextFile = allFiles.randomElement()!
+        } while nextFile == currentFile && allFiles.count > 1
+        play(file: nextFile)
+    }
+    
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        if flag {
+            playNext() //Automatically play next song
+        }
     }
     
     func stop() {
