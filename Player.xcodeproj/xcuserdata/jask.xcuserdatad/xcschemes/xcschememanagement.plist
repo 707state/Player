@@ -9,6 +9,29 @@
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
+		<key>Release.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>440316B82E7BCB5500F53C77</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>440316C62E7BCB5600F53C77</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>440316D02E7BCB5600F53C77</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
 	</dict>
 </dict>
 </plist>
