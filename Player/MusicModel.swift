@@ -94,8 +94,8 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             duration = player?.duration ?? 0
             currentFile = file
             isPlaying = true
-            Task{
-                artwork = try await extractArtwork(from: file)
+            Task.detached {
+                self.artwork = try await self.extractArtwork(from: file)
             }
             startTimer()
         } catch {
@@ -141,9 +141,16 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     }
     
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-            self.currentTime = self.player?.currentTime ?? 0
-        }
+        let queue = DispatchQueue(label: "music.timer")
+            queue.async {
+                self.timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                    DispatchQueue.main.async {
+                        self.currentTime = self.player?.currentTime ?? 0
+                    }
+                }
+                RunLoop.current.add(self.timer!, forMode: .common)
+                RunLoop.current.run()
+            }
     }
     private func stopTimer() {
         timer?.invalidate()
