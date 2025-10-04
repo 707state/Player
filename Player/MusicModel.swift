@@ -6,7 +6,7 @@
 //
 import AVFoundation
 import Foundation
-
+import AppKit
 struct FileNode: Identifiable {
     let id = UUID()
     let url: URL
@@ -27,7 +27,8 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             player?.volume = volume
         }
     }
-
+    @Published var artwork: NSImage?=nil
+    
     private var player: AVAudioPlayer?
     private var timer: Timer?
     
@@ -37,12 +38,12 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     func loadDirectoryTree(url: URL) {
         let url_=url;
         DispatchQueue.global(qos: .userInitiated).async {
-                let root = self.buildNode(for: url_)
-                DispatchQueue.main.async {
-                    self.rootNode = root
-                    self.allFiles=self.collectAllFiles(from: root)
-                }
+            let root = self.buildNode(for: url_)
+            DispatchQueue.main.async {
+                self.rootNode = root
+                self.allFiles=self.collectAllFiles(from: root)
             }
+        }
     }
     // Traverse whole tree
     private func collectAllFiles(from node: FileNode?) -> [URL] {
@@ -93,6 +94,9 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             duration = player?.duration ?? 0
             currentFile = file
             isPlaying = true
+            Task{
+                artwork = try await extractArtwork(from: file)
+            }
             startTimer()
         } catch {
             print("Failed to play:", error)
@@ -144,5 +148,33 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+}
+
+extension MusicModel{
+    func extractArtwork(from url:URL) async throws ->NSImage? {
+        let asset=AVURLAsset(url: url)
+        
+        let metadata=try await asset.loadMetadata(for: .init(rawValue: "org.xiph.vorbis-comment"))
+        for item in metadata {
+
+            if item.commonKey == .commonKeyArtwork {
+
+                if let data = try? await item.load(.dataValue) {
+                    if let image = NSImage(data: data) {
+                        return image
+                    }
+                }
+                
+                if let dict = try? await item.load(.value) as? [String: Any],
+                   let data = dict["data"] as? Data {
+                    if let image = NSImage(data: data) {
+                        return image
+                    }
+                }
+            }
+            
+        }
+        return nil
     }
 }

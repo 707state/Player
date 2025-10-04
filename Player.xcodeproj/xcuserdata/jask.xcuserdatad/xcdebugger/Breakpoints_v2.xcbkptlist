@@ -3,4 +3,96 @@
    uuid = "B85F61D2-48AF-4DBD-A652-0B078ED27FB0"
    type = "1"
    version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B064FD04-0069-4E84-92BC-618BEA6A9156"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Player/MusicModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "156"
+            endingLineNumber = "156"
+            landmarkName = "extractArtwork(from:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "FAABD7A5-DFAA-4609-9EDD-4136C0761A81"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Player/MusicModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "157"
+            endingLineNumber = "157"
+            landmarkName = "extractArtwork(from:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "FAABD7A5-DFAA-4609-9EDD-4136C0761A81 - deaec2d7619d0b17"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "158"
+                  endingLineNumber = "158">
+               </Location>
+               <Location
+                  uuid = "FAABD7A5-DFAA-4609-9EDD-4136C0761A81 - 8af74b5b7ca43711"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "158"
+                  endingLineNumber = "158">
+               </Location>
+               <Location
+                  uuid = "FAABD7A5-DFAA-4609-9EDD-4136C0761A81 - 4467237d476cdd1c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(8) suspend resume partial function for Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "158"
+                  endingLineNumber = "158">
+               </Location>
+               <Location
+                  uuid = "FAABD7A5-DFAA-4609-9EDD-4136C0761A81 - 4467237d476cdd1c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(8) suspend resume partial function for Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "158"
+                  endingLineNumber = "158">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
 </Bucket>

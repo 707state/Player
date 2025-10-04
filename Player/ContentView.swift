@@ -66,6 +66,20 @@ struct PlayerPanel: View {
     @ObservedObject var player: MusicModel
     var body: some View {
         VStack(spacing: 20) {
+            if let artwork = player.artwork {
+                            Image(nsImage: artwork)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 200, height: 200)
+                                .cornerRadius(10)
+                                .shadow(radius: 4)
+                        } else {
+                            Image(systemName: "music.note")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 120, height: 120)
+                                .opacity(0.3)
+                        }
             if let currentItem = player.currentFile {
                 Text("Now playing：\(currentItem.lastPathComponent)")
                     .font(.headline)
