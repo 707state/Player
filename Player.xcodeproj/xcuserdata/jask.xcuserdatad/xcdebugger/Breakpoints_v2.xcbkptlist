@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "3DFDBFD4-D511-4EB1-9F3A-1EC1F72CAF3C"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "C82B6D27-0B50-4171-95C0-99F2BD5B8637"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Player/MusicModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "172"
+            endingLineNumber = "172"
+            landmarkName = "extractArtwork(from:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "99AF8668-0A82-4234-9D8A-F650E76BB860"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Player/MusicModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "168"
+            endingLineNumber = "168"
+            landmarkName = "extractArtwork(from:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "10C1F2CA-9C96-40B5-AC7E-2CB632512DB1"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Player/MusicModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "167"
+            endingLineNumber = "167"
+            landmarkName = "extractArtwork(from:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "50543674-C70E-4B64-8306-C9CBD17D5D5F"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Player/MusicModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "169"
+            endingLineNumber = "169"
+            landmarkName = "extractArtwork(from:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Player/MusicModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "187"
+            endingLineNumber = "187"
+            landmarkName = "extractArtwork(from:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C - c6e9033293d7e504"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for function signature specialization &lt;Arg[1] = Dead&gt; of Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "188"
+                  endingLineNumber = "188">
+               </Location>
+               <Location
+                  uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C - eb4de9097da8a10a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(5) suspend resume partial function for function signature specialization &lt;Arg[1] = Dead&gt; of Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "188"
+                  endingLineNumber = "188">
+               </Location>
+               <Location
+                  uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C - 31a04fe527827d08"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(7) suspend resume partial function for function signature specialization &lt;Arg[1] = Dead&gt; of Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "188"
+                  endingLineNumber = "188">
+               </Location>
+               <Location
+                  uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C - 460415c1805b390e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(9) suspend resume partial function for function signature specialization &lt;Arg[1] = Dead&gt; of Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "188"
+                  endingLineNumber = "188">
+               </Location>
+               <Location
+                  uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C - dc529025456ef850"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(10) suspend resume partial function for function signature specialization &lt;Arg[1] = Dead&gt; of Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "188"
+                  endingLineNumber = "188">
+               </Location>
+               <Location
+                  uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C - 32dfeaf350f9b256"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(11) suspend resume partial function for function signature specialization &lt;Arg[1] = Dead&gt; of Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "188"
+                  endingLineNumber = "188">
+               </Location>
+               <Location
+                  uuid = "FDD767DA-9132-420F-B807-8DBE22E1BC7C - cdd97e84bd20065a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(13) suspend resume partial function for function signature specialization &lt;Arg[1] = Dead&gt; of Player.MusicModel.extractArtwork(from: Foundation.URL) async throws -&gt; Swift.Optional&lt;__C.NSImage&gt;"
+                  moduleName = "Player"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/jask/code/Player/Player/MusicModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "188"
+                  endingLineNumber = "188">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>

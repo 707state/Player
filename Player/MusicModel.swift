@@ -13,6 +13,7 @@ struct FileNode: Identifiable {
     var isDirectory: Bool
     var children: [FileNode]?
 }
+
 class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     // Only one MusicModel in this app!
     static let shared = MusicModel()
@@ -94,7 +95,7 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             duration = player?.duration ?? 0
             currentFile = file
             isPlaying = true
-            Task.detached {
+            Task.detached { @MainActor in
                 self.artwork = try await self.extractArtwork(from: file)
             }
             startTimer()
@@ -142,15 +143,15 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     
     private func startTimer() {
         let queue = DispatchQueue(label: "music.timer")
-            queue.async {
-                self.timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                    DispatchQueue.main.async {
-                        self.currentTime = self.player?.currentTime ?? 0
-                    }
+        queue.async {
+            self.timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                DispatchQueue.main.async {
+                    self.currentTime = self.player?.currentTime ?? 0
                 }
-                RunLoop.current.add(self.timer!, forMode: .common)
-                RunLoop.current.run()
             }
+            RunLoop.current.add(self.timer!, forMode: .common)
+            RunLoop.current.run()
+        }
     }
     private func stopTimer() {
         timer?.invalidate()
@@ -161,26 +162,27 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
 extension MusicModel{
     func extractArtwork(from url:URL) async throws ->NSImage? {
         let asset=AVURLAsset(url: url)
-        
-        let metadata=try await asset.loadMetadata(for: .init(rawValue: "org.xiph.vorbis-comment"))
-        for item in metadata {
-
-            if item.commonKey == .commonKeyArtwork {
-
-                if let data = try? await item.load(.dataValue) {
-                    if let image = NSImage(data: data) {
-                        return image
-                    }
-                }
+        for format in try await asset.load(.availableMetadataFormats) {
+            
+            let metadata = try await asset.loadMetadata(for: format)
+            for item in metadata {
                 
-                if let dict = try? await item.load(.value) as? [String: Any],
-                   let data = dict["data"] as? Data {
-                    if let image = NSImage(data: data) {
-                        return image
+                if item.commonKey == .commonKeyArtwork {
+                    
+                    if let data = try? await item.load(.dataValue) {
+                        if let image = NSImage(data: data) {
+                            return image
+                        }
+                    }
+                    
+                    if let dict = try? await item.load(.value) as? [String: Any],
+                       let data = dict["data"] as? Data {
+                        if let image = NSImage(data: data) {
+                            return image
+                        }
                     }
                 }
             }
-            
         }
         return nil
     }
