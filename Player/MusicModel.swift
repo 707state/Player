@@ -88,7 +88,10 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     func play(file: URL) {
         stop()
         do {
-            player = try AVAudioPlayer(contentsOf: file)
+            let data = try Data(contentsOf: file, options: .mappedIfSafe)
+            
+            // Step 2: 使用内存数据初始化 AVAudioPlayer
+            player = try AVAudioPlayer(data: data)
             player?.delegate = self
             player?.prepareToPlay()
             player?.play()
