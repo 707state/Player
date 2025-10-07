@@ -61,61 +61,92 @@ func formatTime(_ time: TimeInterval) -> String {
     return String(format: "%02d:%02d", minutes, seconds)
 }
 
-// Player interface
 struct PlayerPanel: View {
     @ObservedObject var player: MusicModel
+    
     var body: some View {
-        VStack(spacing: 20) {
+        ZStack {
+            // 背景层：模糊的 artwork
             if let artwork = player.artwork {
-                            Image(nsImage: artwork)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 200, height: 200)
-                                .cornerRadius(10)
-                                .shadow(radius: 4)
-                        } else {
-                            Image(systemName: "music.note")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 120, height: 120)
-                                .opacity(0.3)
-                        }
-            if let currentItem = player.currentFile {
-                Text("Now playing：\(currentItem.lastPathComponent)")
-                    .font(.headline)
+                Image(nsImage: artwork)
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: 30)
+                    .overlay(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.black.opacity(0.4), .clear]),
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                    )
+                    .ignoresSafeArea()
             } else {
-                Text("Please select on mp3/flac file")
+                // 默认模糊背景
+                Color.gray.opacity(0.2)
+                    .ignoresSafeArea()
             }
             
-            Slider(value: Binding(
-                get: { player.currentTime },
-                set: { player.seek(to: $0) }),
-                   in: 0...(player.duration))
-            .disabled(player.currentFile == nil)
-            HStack {
-                Text(formatTime(player.currentTime))
-                Spacer()
-                Text(formatTime(player.duration))
+            // 前景层：播放器内容
+            VStack(spacing: 20) {
+                if let artwork = player.artwork {
+                    Image(nsImage: artwork)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 200, height: 200)
+                        .cornerRadius(10)
+                        .shadow(radius: 4)
+                } else {
+                    Image(systemName: "music.note")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120, height: 120)
+                        .opacity(0.3)
+                }
+                
+                if let currentItem = player.currentFile {
+                    Text("Now playing：\(currentItem.lastPathComponent)")
+                        .font(.headline)
+                } else {
+                    Text("Please select an mp3/flac file")
+                }
+                
+                // 播放进度滑杆
+                Slider(
+                    value: Binding(
+                        get: { player.currentTime },
+                        set: { player.seek(to: $0) }
+                    ),
+                    in: 0...(player.duration)
+                )
+                .disabled(player.currentFile == nil)
+                
+                HStack {
+                    Text(formatTime(player.currentTime))
+                    Spacer()
+                    Text(formatTime(player.duration))
+                }
+                .font(.caption)
+                
+                HStack(spacing: 40) {
+                    Button {
+                        if player.isPlaying { player.pause() } else { player.resume() }
+                    } label: {
+                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    }
+                    Button { player.stop() } label: {
+                        Image(systemName: "stop.fill")
+                    }
+                    Button { player.playNext() } label: {
+                        Image(systemName: "forward.fill")
+                    }
+                }
+                
+                // 音量控制
+                Slider(value: $player.volume, in: 0...1)
+                    .frame(width: 120, height: 20)
+                    .padding(.horizontal, 4)
             }
-            .font(.caption)
-            HStack(spacing: 40) {
-                Button {
-                    if player.isPlaying { player.pause() } else { player.resume() }
-                } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                }
-                Button { player.stop() } label: {
-                    Image(systemName: "stop.fill")
-                }
-                Button { player.playNext() } label: {
-                    Image(systemName: "forward.fill")
-                }
-            }
-            Slider(value: $player.volume, in: 0...1)
-                .frame(width: 120, height: 20)   // 宽度120，高度20
-                .padding(.horizontal, 4)
-
+            .padding()
         }
-        .padding()
     }
 }
