@@ -2,111 +2,117 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
-	"os"
-	"os/exec"
-	"strings"
+	"net/http"
 	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func parseFiles(path string) <-chan map[string]any {
-	ch := make(chan map[string]any)
-	go func() {
-		defer close(ch)
+const (
+	albumCollectionName = "albums"
+	albumIndexName      = "album_title_artist_index"
+	bookCollectionName  = "books"
+	bookIndexName       = "book_title_author_index"
+	filmCollectionName  = "films"
+	filmIndexName       = "film_title_director_index"
+)
 
-		cmd := exec.Command("exiftool",
-			"-if", "$Filename !~ /^._/ and $FileType !~ /JPEG|PNG|GIF|BMP|TIFF/i",
-			"-q", "-json", "-r", path,
-		)
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			log.Fatalf("获取 stdout 出错: %v", err)
-		}
-
-		if err := cmd.Start(); err != nil {
-			log.Fatalf("启动 exiftool 出错: %v", err)
-		}
-
-		dec := json.NewDecoder(stdout)
-		token, err := dec.Token()
-		if err != nil {
-			log.Fatalf("解析 JSON token 出错: %v", err)
-		}
-		if delim, ok := token.(json.Delim); !ok || delim != '[' {
-			log.Fatalf("输出不是 JSON 数组")
-		}
-
-		for dec.More() {
-			var fileInfo map[string]any
-			if err := dec.Decode(&fileInfo); err != nil {
-				log.Fatalf("解析 JSON 对象出错: %v", err)
-			}
-			ch <- fileInfo
-		}
-
-		if err := cmd.Wait(); err != nil {
-			log.Fatalf("等待 exiftool 完成出错: %v", err)
-		}
-	}()
-	return ch
+type IndexField struct {
+	Key   string
+	Value any
 }
 
-func insertToMongo(ctx context.Context, uri string, ch <-chan map[string]any) {
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
-	client, err := mongo.Connect(opts)
-	if err != nil {
-		log.Fatalf("MongoDB 连接失败: %v", err)
-	}
-	defer func() {
-		if err := client.Disconnect(ctx); err != nil {
-			log.Fatalf("MongoDB 断开连接失败: %v", err)
-		}
-	}()
-
-	// 获取数据库和 collection
-	db := client.Database("musicdb")
-	collection := db.Collection("tracks")
-	for fileInfo := range ch {
-		artist, _ := fileInfo["Artist"].(string)
-		title, _ := fileInfo["Title"].(string)
-		file_name, _ := fileInfo["FileName"].(string)
-		// 如果 Artist 为空，就尝试从 Title 中推断
-		if artist == "" && title != "" {
-			parts := strings.SplitN(file_name, "-", 2)
-			if len(parts) == 2 {
-				artist = strings.TrimSpace(parts[0])
-			}
-		}
-		doc := fileInfo
-		if _, err := collection.InsertOne(ctx, doc); err != nil {
-			log.Printf("插入 MongoDB 失败: %v", err)
-		} else {
-			fmt.Printf("已插入: %v - %v\n", artist, doc["Title"])
-		}
-	}
-}
+var albumCollection *mongo.Collection
+var bookCollection *mongo.Collection
+var filmCollection *mongo.Collection
 
 func main() {
-	path := flag.String("path", "/Volumes/NO NAME/", "File path to music directory.")
-	flag.Parse()
-	fmt.Println("扫描路径: ", *path)
+	dbName := getEnv("DB_NAME", "musaic")
+	client := getConnection()
+	defer client.Disconnect(context.TODO())
 
-	uri := os.Getenv("MONGODB_URI")
-	if uri == "" {
-		// uri = "mongodb://192.168.30.92:27017"
-		log.Fatal("必须设置 'MONGODB_URI' 环境变量")
+	// Ensure collections exist and create indexes
+	ctx := context.Background()
+	database := client.Database(dbName) // Using default database
+
+	// Create albums collection if not exists and create index
+	albumCollection = createCollectionIfNotExists(ctx, database, albumCollectionName)
+	createIndexForCollection(ctx, albumCollection, albumIndexName, []IndexField{
+		{Key: "artist", Value: 1},
+		{Key: "title", Value: 1},
+	})
+	// Create books collection if not exists and create index
+	bookCollection = createCollectionIfNotExists(ctx, database, bookCollectionName)
+	createIndexForCollection(ctx, bookCollection, bookIndexName, []IndexField{
+		{Key: "title", Value: 1},
+		{Key: "author", Value: 1},
+	})
+
+	// Create films collection if not exists and create index
+	filmCollection = createCollectionIfNotExists(ctx, database, filmCollectionName)
+	createIndexForCollection(ctx, filmCollection, filmIndexName, []IndexField{
+		{Key: "title", Value: 1},
+		{Key: "director", Value: 1},
+	})
+	log.Println("Indexes created successfully")
+	// http api
+	httpListenAddress := getEnv("ADDRESS", "localhost")
+	httpListenPort := getEnv("PORT", "8080")
+	http.HandleFunc("/music", handleMusic)
+	http.HandleFunc("/books", handleBooks)
+	http.HandleFunc("/movies", handleMovies)
+	bindAddress := fmt.Sprintf("%s:%s", httpListenAddress, httpListenPort)
+	log.Printf("Server listening on %s", bindAddress)
+	http.ListenAndServe(bindAddress, nil)
+}
+
+func createCollectionIfNotExists(ctx context.Context, db *mongo.Database, collectionName string) *mongo.Collection {
+	// In MongoDB, collections are created automatically when first used.
+	// But we can explicitly create them using CreateCollection
+	err := db.CreateCollection(ctx, collectionName)
+	if err != nil {
+		// If collection already exists, this will throw an error which we can ignore
+		log.Printf("Collection %s already exists or error creating: %v", collectionName, err)
+	} else {
+		log.Printf("Collection %s created successfully", collectionName)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	return db.Collection(collectionName)
+}
+func createIndexForCollection(ctx context.Context, collection *mongo.Collection, indexName string, fields []IndexField) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	keys := bson.D{}
+	for _, field := range fields {
+		keys = append(keys, bson.E{Key: field.Key, Value: field.Value})
+	}
+	_, err := collection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    keys,
+		Options: options.Index().SetUnique(true).SetName(indexName),
+	})
+	return err
+}
 
-	ch := parseFiles(*path)
-	insertToMongo(ctx, uri, ch)
+func getConnection() *mongo.Client {
+	mongo_url := getEnv("MONGO_URL", "localhost")
+	mongo_port := getEnvInt("MONGO_PORT", 27017)
+	mongo_user := getEnv("MONGO_USER", "admin")
+	mongo_password := getEnv("MONGO_PASSWORD", "password")
+	clientOptions := options.Client()
+	clientOptions.ApplyURI(
+		fmt.Sprintf("mongodb://%s:%s@%s:%d", mongo_user, mongo_password, mongo_url, mongo_port),
+	)
+	client, err := mongo.Connect(clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = client.Ping(context.TODO(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Connected to MongoDB!")
+	return client
 }
