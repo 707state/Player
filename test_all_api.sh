@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE_URL="http://192.168.246.1:8011"
+BASE_URL="http://$ADDRESS:$PORT"
 TOTAL_TESTS=0
 FAILED_TESTS=0
 
@@ -252,7 +252,7 @@ test_endpoint() {
 
     # Test Error Cases
     echo -e "\n8. Error cases:"
-    
+
     # Test POST with missing required fields
     echo "8.1. POST with missing required fields:"
     response=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}${endpoint}" \
@@ -296,9 +296,174 @@ test_endpoint() {
 }
 
 # 运行所有测试
+test_album_single_endpoint() {
+    local endpoint="/single"
+    local name="AlbumSingle"
+    echo -e "\nTesting ${name} API..."
+    echo "------------------------"
+
+    # First create an album for testing
+    echo "1. Create base album for testing:"
+    response=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/music" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "title": "Test Single Album",
+            "artist": "Test Single Artist",
+            "genre": "Rock",
+            "year": 2023
+        }')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 201 "$content" "Create base album" "$http_code"
+
+    # Test POST single (add single to existing album)
+    echo -e "\n2. POST new single to existing album:"
+    response=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}${endpoint}" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "title": "Test Single Album",
+            "artist": "Test Single Artist",
+            "single": "Test Song 1"
+        }')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 200 "$content" "POST single to existing album" "$http_code"
+
+    # Test POST single (create new album with single)
+    echo -e "\n3. POST single to create new album:"
+    response=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}${endpoint}" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "title": "New Album Created",
+            "artist": "New Artist Created",
+            "single": "First Song"
+        }')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 200 "$content" "POST single to create new album" "$http_code"
+
+    # Test GET single exists
+    echo -e "\n4. GET check single exists:"
+    response=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}${endpoint}?title=Test+Single+Album&artist=Test+Single+Artist&single=Test+Song+1")
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 200 "$content" "GET check single exists" "$http_code"
+    if [ "$http_code" -eq 200 ] && echo "$content" | jq -e '.exists == true' >/dev/null; then
+        echo -e "${GREEN}✓ Single exists confirmed${NC}"
+    else
+        echo -e "${RED}✗ Single existence check failed${NC}"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+    fi
+
+    # Test GET single doesn't exist
+    echo -e "\n5. GET check single doesn't exist:"
+    response=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}${endpoint}?title=Test+Single+Album&artist=Test+Single+Artist&single=Non+Existent+Song")
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 200 "$content" "GET check single doesn't exist" "$http_code"
+    if [ "$http_code" -eq 200 ] && echo "$content" | jq -e '.exists == false' >/dev/null; then
+        echo -e "${GREEN}✓ Single non-existence confirmed${NC}"
+    else
+        echo -e "${RED}✗ Single non-existence check failed${NC}"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+    fi
+
+    # Test POST duplicate single (should fail)
+    echo -e "\n6. POST duplicate single (should fail):"
+    response=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}${endpoint}" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "title": "Test Single Album",
+            "artist": "Test Single Artist",
+            "single": "Test Song 1"
+        }')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 201 "$content" "POST duplicate single" "$http_code"
+
+    # Test DELETE single
+    echo -e "\n7. DELETE single:"
+    response=$(curl -s -w "\n%{http_code}" -X DELETE "${BASE_URL}${endpoint}" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "title": "Test Single Album",
+            "artist": "Test Single Artist",
+            "single": "Test Song 1"
+        }')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 200 "$content" "DELETE single" "$http_code"
+
+    # Verify deletion with GET
+    echo -e "\n8. Verify single deletion:"
+    response=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}${endpoint}?title=Test+Single+Album&artist=Test+Single+Artist&single=Test+Song+1")
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 200 "$content" "GET verify deletion" "$http_code"
+    if [ "$http_code" -eq 200 ] && echo "$content" | jq -e '.exists == false' >/dev/null; then
+        echo -e "${GREEN}✓ Single successfully deleted${NC}"
+    else
+        echo -e "${RED}✗ Single still exists after deletion${NC}"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+    fi
+
+    # Test Error Cases
+    echo -e "\n9. Error cases:"
+
+    # Test POST with missing required fields
+    echo "9.1. POST with missing required fields:"
+    response=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}${endpoint}" \
+        -H "Content-Type: application/json" \
+        -d '{"title": "Test"}')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 400 "$content" "POST with missing fields" "$http_code"
+
+    # Test GET with missing required fields
+    echo "9.2. GET with missing required fields:"
+    response=$(curl -s -w "\n%{http_code}" -X GET "${BASE_URL}${endpoint}?title=Test")
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 400 "$content" "GET with missing fields" "$http_code"
+
+    # Test DELETE with missing required fields
+    echo "9.3. DELETE with missing required fields:"
+    response=$(curl -s -w "\n%{http_code}" -X DELETE "${BASE_URL}${endpoint}" \
+        -H "Content-Type: application/json" \
+        -d '{"title": "Test"}')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 400 "$content" "DELETE with missing fields" "$http_code"
+
+    # Test DELETE non-existent single
+    echo "9.4. DELETE non-existent single:"
+    response=$(curl -s -w "\n%{http_code}" -X DELETE "${BASE_URL}${endpoint}" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "title": "Non Existent Album",
+            "artist": "Non Existent Artist",
+            "single": "Non Existent Song"
+        }')
+    http_code=$(echo "$response" | tail -n1)
+    content=$(echo "$response" | sed '$ d')
+    check_response 400 "$content" "DELETE non-existent single" "$http_code"
+
+    # Clean up test albums
+    echo -e "\n10. Cleaning up test albums:"
+    curl -s -X DELETE "${BASE_URL}/music" \
+        -H "Content-Type: application/json" \
+        -d '{"title": "Test Single Album", "artist": "Test Single Artist"}' >/dev/null
+    curl -s -X DELETE "${BASE_URL}/music" \
+        -H "Content-Type: application/json" \
+        -d '{"title": "New Album Created", "artist": "New Artist Created"}' >/dev/null
+    echo -e "${GREEN}✓ Test cleanup completed${NC}"
+}
+
+# 运行所有测试
 test_endpoint "/music" "Music"
 test_endpoint "/books" "Books"
 test_endpoint "/movies" "Movies"
+test_album_single_endpoint
 
 # 输出测试总结
 echo -e "\n=== Test Summary ==="

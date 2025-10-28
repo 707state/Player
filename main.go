@@ -31,7 +31,7 @@ var bookCollection *mongo.Collection
 var filmCollection *mongo.Collection
 
 func main() {
-	dbName := getEnv("DB_NAME", "musaic")
+	dbName := getEnv("DB_NAME", "musaic_dev")
 	client := getConnection()
 	defer client.Disconnect(context.TODO())
 
@@ -62,9 +62,12 @@ func main() {
 	// http api
 	httpListenAddress := getEnv("ADDRESS", "localhost")
 	httpListenPort := getEnv("PORT", "8080")
-	http.HandleFunc("/music", handleMusic)
-	http.HandleFunc("/books", handleBooks)
-	http.HandleFunc("/movies", handleMovies)
+	go func() {
+		http.HandleFunc("/music", corsMiddleware(handleMusic))
+		http.HandleFunc("/books", corsMiddleware(handleBooks))
+		http.HandleFunc("/movies", corsMiddleware(handleMovies))
+		http.HandleFunc("/single", corsMiddleware(handleAlbumSingle))
+	}()
 	bindAddress := fmt.Sprintf("%s:%s", httpListenAddress, httpListenPort)
 	log.Printf("Server listening on %s", bindAddress)
 	http.ListenAndServe(bindAddress, nil)
@@ -97,10 +100,10 @@ func createIndexForCollection(ctx context.Context, collection *mongo.Collection,
 }
 
 func getConnection() *mongo.Client {
-	mongo_url := getEnv("MONGO_URL", "localhost")
-	mongo_port := getEnvInt("MONGO_PORT", 27017)
-	mongo_user := getEnv("MONGO_USER", "admin")
-	mongo_password := getEnv("MONGO_PASSWORD", "password")
+	mongo_url := getEnv("MONGO_URL", "192.168.237.1")
+	mongo_port := getEnvInt("MONGO_PORT", 7899)
+	mongo_user := getEnv("MONGO_USER", "jask")
+	mongo_password := getEnv("MONGO_PASSWORD", "theonlylove145")
 	clientOptions := options.Client()
 	clientOptions.ApplyURI(
 		fmt.Sprintf("mongodb://%s:%s@%s:%d", mongo_user, mongo_password, mongo_url, mongo_port),

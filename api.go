@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,27 +25,6 @@ type Album struct {
 	Comment string `json:"comment" bson:"comment"`
 	// between 0-5
 	Rating int `json:"rating" bson:"rating"`
-}
-type Book struct {
-	Title  string `json:"title" bson:"title"`
-	Author string `json:"author" bson:"author"`
-	Genre  string `json:"genre" bson:"genre"`
-	Year   int    `json:"year" bson:"year"`
-	Url    string `json:"url" bson:"url"`
-	// url of cover image!
-	Cover   string `json:"cover" bson:"cover"`
-	Comment string `json:"comment" bson:"comment"`
-	// between 0-5
-	Rating int `json:"rating" bson:"rating"`
-}
-type Movie struct {
-	Title    string `json:"title" bson:"title"`
-	Director string `json:"director" bson:"director"`
-	Genre    string `json:"genre" bson:"genre"`
-	Year     int    `json:"year" bson:"year"`
-	Url      string `json:"url" bson:"url"`
-	Comment  string `json:"comment" bson:"comment"`
-	Rating   int    `json:"rating" bson:"rating"`
 }
 
 type ErrorResponse struct {
@@ -109,7 +90,7 @@ func handleMusicGet(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := strings.TrimSpace(q.Get("cuts")); v != "" {
 		parts := []string{}
-		for _, p := range strings.Split(v, ",") {
+		for p := range strings.SplitSeq(v, ",") {
 			if t := strings.TrimSpace(p); t != "" {
 				parts = append(parts, t)
 			}
@@ -135,6 +116,7 @@ func handleMusicGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(albums); err != nil {
 		http.Error(w, "Failed to encode albums", http.StatusInternalServerError)
 		return
@@ -189,8 +171,13 @@ func handleMusicPost(w http.ResponseWriter, r *http.Request) {
 	if album.Year != 0 {
 		update["$set"].(bson.M)["year"] = album.Year
 	}
+	// 在 handleMusicPost 函数中，修改 cuts 的处理逻辑：
 	if len(album.Cuts) > 0 {
+		// 确保 cuts 总是数组，即使是空数组
 		update["$set"].(bson.M)["cuts"] = album.Cuts
+	} else {
+		// 如果传入的 cuts 为空，设置为空数组而不是 nil
+		update["$set"].(bson.M)["cuts"] = []string{}
 	}
 	if album.Url != "" {
 		update["$set"].(bson.M)["url"] = album.Url
@@ -251,6 +238,205 @@ func handleMusicDelete(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(SuccessResponse{Message: "Album deleted successfully"})
+}
+
+type AlbumCut struct {
+	Title     string `json:"title" bson:"title"`
+	Artist    string `json:"artist" bson:"artist"`
+	CutSingle string `json:"single" bson:"single"`
+}
+
+func handleAlbumSingle(w http.ResponseWriter, r *http.Request) {
+	log.Printf("AlbumSingle API endpoint called")
+	switch r.Method {
+	case http.MethodGet:
+		handleAlbumSingleGet(w, r)
+	case http.MethodPost:
+		handleAlbumSinglePost(w, r)
+	case http.MethodDelete:
+		handleAlbumSingleDelete(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+func singleExistsInAlbumCollection(single AlbumCut) (bool, error) {
+	ctx := context.Background()
+	filter := bson.M{
+		"title":  single.Title,
+		"artist": single.Artist,
+	}
+	var existingAlbum Album
+	err := albumCollection.FindOne(ctx, filter).Decode(&existingAlbum)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+		return false, err
+	}
+	if existingAlbum.Cuts == nil {
+		return false, nil
+	}
+	if slices.Contains(existingAlbum.Cuts, single.CutSingle) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	title := strings.TrimSpace(q.Get("title"))
+	artist := strings.TrimSpace(q.Get("artist"))
+	single := strings.TrimSpace(q.Get("single"))
+
+	if title == "" || artist == "" || single == "" {
+		jsonError(w, "Title, artist and single are required", http.StatusBadRequest)
+		return
+	}
+
+	albumCut := AlbumCut{
+		Title:     title,
+		Artist:    artist,
+		CutSingle: single,
+	}
+
+	exists, err := singleExistsInAlbumCollection(albumCut)
+	if err != nil {
+		jsonError(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]bool{"exists": exists})
+}
+
+func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
+	var single AlbumCut
+	if err := json.NewDecoder(r.Body).Decode(&single); err != nil {
+		jsonError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if single.Title == "" || single.Artist == "" || single.CutSingle == "" {
+		jsonError(w, "Title, artist and single are required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	filter := bson.M{
+		"title":  single.Title,
+		"artist": single.Artist,
+	}
+
+	var existingAlbum Album
+	err := albumCollection.FindOne(ctx, filter).Decode(&existingAlbum)
+
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// 创建新专辑并添加单曲
+			newAlbum := Album{
+				Title:  single.Title,
+				Artist: single.Artist,
+				Cuts:   []string{single.CutSingle},
+			}
+			_, err = albumCollection.InsertOne(ctx, newAlbum)
+			if err != nil {
+				jsonError(w, "Failed to create album and add single", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(SuccessResponse{Message: "Album created and single added successfully"})
+			return
+		}
+		jsonError(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// 检查单曲是否已存在
+	if slices.Contains(existingAlbum.Cuts, single.CutSingle) {
+		jsonError(w, "Single already exists in album", http.StatusCreated)
+		return
+	}
+
+	// 添加单曲到专辑
+	var update bson.M
+	if len(existingAlbum.Cuts) == 0 {
+		// 如果 cuts 为 null 或空，使用 $set 创建数组
+		update = bson.M{
+			"$set": bson.M{"cuts": []string{single.CutSingle}},
+		}
+	} else {
+		// 如果 cuts 已经是数组，使用 $addToSet 添加元素
+		update = bson.M{
+			"$addToSet": bson.M{"cuts": single.CutSingle},
+		}
+	}
+
+	_, err = albumCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		jsonError(w, "Failed to add single to album", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SuccessResponse{Message: "Single added to album successfully"})
+}
+
+func handleAlbumSingleDelete(w http.ResponseWriter, r *http.Request) {
+	var single AlbumCut
+	if err := json.NewDecoder(r.Body).Decode(&single); err != nil {
+		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	log.Printf("AlbumSingle API endpoint called with book: %v", single)
+	if single.Artist == "" || single.Title == "" || single.CutSingle == "" {
+		jsonError(w, "Album Title and Author and Cut are required", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	filter := bson.M{
+		"title":  single.Title,
+		"artist": single.Artist,
+	}
+	var existingAlbum Album
+	err := albumCollection.FindOne(ctx, filter).Decode(&existingAlbum)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			jsonError(w, "Doesn't exists such Album", http.StatusBadRequest)
+			return
+		}
+	}
+	removeStringInPlace(&existingAlbum.Cuts, single.CutSingle)
+	update := bson.M{
+		"$set": bson.M{
+			"cuts": existingAlbum.Cuts,
+		},
+	}
+	if len(update["$set"].(bson.M)) > 0 {
+		_, err = albumCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			jsonError(w, "Failed to update albumcut", http.StatusInternalServerError)
+			return
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(SuccessResponse{Message: "Single deleted successfully"})
+}
+
+type Book struct {
+	Title  string `json:"title" bson:"title"`
+	Author string `json:"author" bson:"author"`
+	Genre  string `json:"genre" bson:"genre"`
+	Year   int    `json:"year" bson:"year"`
+	Url    string `json:"url" bson:"url"`
+	// url of cover image!
+	Cover   string `json:"cover" bson:"cover"`
+	Comment string `json:"comment" bson:"comment"`
+	// between 0-5
+	Rating int `json:"rating" bson:"rating"`
 }
 
 func handleBooks(w http.ResponseWriter, r *http.Request) {
@@ -314,6 +500,7 @@ func handleBooksGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(books); err != nil {
 		http.Error(w, "Failed to encode books", http.StatusInternalServerError)
 		return
@@ -436,6 +623,16 @@ func handleBooksDelete(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SuccessResponse{Message: "Book deleted successfully"})
 }
 
+type Movie struct {
+	Title    string `json:"title" bson:"title"`
+	Director string `json:"director" bson:"director"`
+	Genre    string `json:"genre" bson:"genre"`
+	Year     int    `json:"year" bson:"year"`
+	Url      string `json:"url" bson:"url"`
+	Comment  string `json:"comment" bson:"comment"`
+	Rating   int    `json:"rating" bson:"rating"`
+}
+
 func handleMovies(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Movies API endpoint called")
 	switch r.Method {
@@ -493,6 +690,7 @@ func handleMoviesGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(movies); err != nil {
 		http.Error(w, "Failed to encode movies", http.StatusInternalServerError)
 		return
