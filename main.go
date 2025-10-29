@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"time"
@@ -29,6 +31,9 @@ type IndexField struct {
 var albumCollection *mongo.Collection
 var bookCollection *mongo.Collection
 var filmCollection *mongo.Collection
+
+//go:embed dist
+var staticFiles embed.FS
 
 func main() {
 	dbName := getEnv("DB_NAME", "musaic_dev")
@@ -60,17 +65,25 @@ func main() {
 	})
 	log.Println("Indexes created successfully")
 	// http api
-	httpListenAddress := getEnv("ADDRESS", "localhost")
+	httpListenAddress := getEnv("ADDRESS", "0.0.0.0")
 	httpListenPort := getEnv("PORT", "8080")
-	go func() {
-		http.HandleFunc("/music", corsMiddleware(handleMusic))
-		http.HandleFunc("/books", corsMiddleware(handleBooks))
-		http.HandleFunc("/movies", corsMiddleware(handleMovies))
-		http.HandleFunc("/single", corsMiddleware(handleAlbumSingle))
-	}()
+
+	distFS, _ := fs.Sub(staticFiles, "dist")
+	// 构建静态文件服务
+	staticServer := http.FileServer(http.FS(distFS))
+
+	http.Handle("/", staticServer)
+
+	go http.HandleFunc("/music", corsMiddleware(handleMusic))
+	go http.HandleFunc("/books", corsMiddleware(handleBooks))
+	go http.HandleFunc("/movies", corsMiddleware(handleMovies))
+	go http.HandleFunc("/single", corsMiddleware(handleAlbumSingle))
 	bindAddress := fmt.Sprintf("%s:%s", httpListenAddress, httpListenPort)
 	log.Printf("Server listening on %s", bindAddress)
-	http.ListenAndServe(bindAddress, nil)
+	err := http.ListenAndServe(bindAddress, nil)
+	if err != nil {
+		log.Printf("Failed to ListenAndServe: %v\n", err.Error())
+	}
 }
 
 func createCollectionIfNotExists(ctx context.Context, db *mongo.Database, collectionName string) *mongo.Collection {

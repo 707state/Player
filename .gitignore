@@ -2,3 +2,4 @@ musaic
 go.sum
 .envrc
 .vscode
+dist/
