@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage } from "element-plus";
+import { WarningFilled } from "@element-plus/icons-vue";
 const API_BASE_URL = import.meta.env.VITE_VUE_APP_BACKEND_URL;
 // 类型定义，严格与后端保持一致
 interface Album {
@@ -36,6 +37,37 @@ const form = reactive<Album>({
 });
 const singles = ref<string[]>([]);
 const singleInput = ref("");
+
+const deleteDialogVisible = ref(false);
+const currentDeleteAlbum = ref<Album | null>(null);
+
+function showDeleteDialog(album: Album) {
+  currentDeleteAlbum.value = album;
+  deleteDialogVisible.value = true;
+}
+function closeDeleteDialog() {
+  deleteDialogVisible.value = false;
+  currentDeleteAlbum.value = null;
+}
+async function confirmDeleteAlbum() {
+  if (!currentDeleteAlbum.value) return;
+  try {
+    await fetch(`${API_BASE_URL}/music`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: currentDeleteAlbum.value.title, artists: currentDeleteAlbum.value.artists })
+    });
+    const cuts = await getAllSingles(currentDeleteAlbum.value.title, currentDeleteAlbum.value.artists);
+    for (const cut of cuts) {
+      await removeSingle(cut, true, currentDeleteAlbum.value);
+    }
+    ElMessage.success("已删除");
+    await fetchAlbums();
+  } catch {
+    ElMessage.error("删除失败");
+  }
+  closeDeleteDialog();
+}
 
 function artistsDisplay(arr?: string[]) {
   return (arr || []).join(", ");
@@ -124,26 +156,6 @@ async function saveAlbum() {
   } catch { ElMessage.error('保存失败'); }
 }
 
-async function deleteAlbum(album: Album) {
-  await ElMessageBox.confirm(`确定要删除专辑【${album.title}】？`, "警告", {
-    confirmButtonText: "确定", cancelButtonText: "取消", type: "warning"
-  });
-  try {
-    await fetch(`${API_BASE_URL}/music`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: album.title, artists: album.artists })
-    });
-    // 删除相关曲目
-    const cuts = await getAllSingles(album.title, album.artists);
-    for (const cut of cuts) {
-      await removeSingle(cut, true, album);
-    }
-    ElMessage.success("已删除");
-    await fetchAlbums();
-  } catch { ElMessage.error("删除失败"); }
-}
-
 // 获取所有曲目
 async function getAllSingles(album: string, artists: string[]): Promise<string[]> {
   const url = new URL(`${API_BASE_URL}/single`, window.location.origin);
@@ -222,7 +234,7 @@ onMounted(fetchAlbums);
           </span>
         </div>
         <div class="album-actions">
-          <el-button type="danger" size="small" @click.stop="deleteAlbum(album)">删除</el-button>
+          <el-button type="danger" size="small" @click.stop="showDeleteDialog(album)">删除</el-button>
           <el-button type="primary" size="small" @click.stop="openDialog(album)">编辑/详情</el-button>
         </div>
       </div>
@@ -258,6 +270,21 @@ onMounted(fetchAlbums);
           <el-button type="primary" @click="saveAlbum">保存</el-button>
         </el-form-item>
       </el-form>
+    </el-dialog>
+    <el-dialog
+      v-model="deleteDialogVisible"
+      width="360px"
+      :title="`删除专辑【${currentDeleteAlbum?.title}】`"
+      @close="closeDeleteDialog"
+    >
+      <div style="text-align: center; color: #f56c6c; margin-bottom: 20px;">
+        <el-icon><WarningFilled /></el-icon>
+        <p>确定要删除专辑【{{ currentDeleteAlbum?.title }}】？</p>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="closeDeleteDialog">取消</el-button>
+        <el-button type="danger" @click="confirmDeleteAlbum">确定删除</el-button>
+      </span>
     </el-dialog>
   </div>
 </template>
