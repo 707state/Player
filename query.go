@@ -37,15 +37,49 @@ func (fb *FilterBuilder) WithIntField(q url.Values, fieldName string) *FilterBui
 }
 
 func (fb *FilterBuilder) WithArrayField(q url.Values, fieldName string) *FilterBuilder {
+	raw := strings.TrimSpace(q.Get(fieldName))
+	if raw == "" {
+		return fb
+	}
 	parts := []string{}
-	for p := range strings.SplitSeq(fieldName, ",") {
+	for _, p := range strings.Split(raw, ",") {
 		if t := strings.TrimSpace(p); t != "" {
 			parts = append(parts, t)
 		}
 	}
 	if len(parts) > 0 {
-		// match documents that contain all provided cuts
-		fb.filter["cuts"] = bson.M{"$all": parts}
+		fb.filter[fieldName] = bson.M{"$all": parts}
+	}
+	return fb
+}
+
+// WithRegexField allows mapping a query param to a field with case-insensitive regex
+func (fb *FilterBuilder) WithRegexField(q url.Values, paramName, fieldName string) *FilterBuilder {
+	if _, exists := fb.filter[fieldName]; exists {
+		return fb
+	}
+	if v := strings.TrimSpace(q.Get(paramName)); v != "" {
+		fb.filter[fieldName] = bson.M{"$regex": v, "$options": "i"}
+	}
+	return fb
+}
+
+// WithArrayAllRegex matches array fields requiring all CSV-provided values (case-insensitive)
+func (fb *FilterBuilder) WithArrayAllRegex(q url.Values, paramName, fieldName string) *FilterBuilder {
+	raw := strings.TrimSpace(q.Get(paramName))
+	if raw == "" {
+		return fb
+	}
+	values := []any{}
+	for _, p := range strings.Split(raw, ",") {
+		name := strings.TrimSpace(p)
+		if name == "" {
+			continue
+		}
+		values = append(values, bson.Regex{Pattern: name, Options: "i"})
+	}
+	if len(values) > 0 {
+		fb.filter[fieldName] = bson.M{"$all": values}
 	}
 	return fb
 }

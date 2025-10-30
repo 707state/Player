@@ -3,3 +3,7 @@ go.sum
 .envrc
 .vscode
 dist/
+
+localhost-key.pem
+localhost.pem
+

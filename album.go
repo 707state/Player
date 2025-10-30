@@ -12,9 +12,9 @@ import (
 
 type Album struct {
 	Title   string   `json:"title" bson:"title"`
-	Artists []string `json:"artist" bson:"artist"`
+	Artists []string `json:"artists" bson:"artists"`
 	Genre   string   `json:"genre" bson:"genre"`
-	Year    Date     `json:"year" bson:"year"`
+	Year    int      `json:"year" bson:"year"`
 	Url     string   `json:"url" bson:"url"`
 	// url of artwork!
 	Artwork string `json:"artwork" bson:"artwork"`
@@ -100,7 +100,7 @@ func handleMusicPost(w http.ResponseWriter, r *http.Request) {
 	if album.Genre != "" {
 		update["$set"].(bson.M)["genre"] = album.Genre
 	}
-	update["$set"].(bson.M)["year"] = album.Year.Time
+	update["$set"].(bson.M)["year"] = album.Year
 	// 在 handleMusicPost 函数中，修改 cuts 的处理逻辑：
 	if album.Url != "" {
 		update["$set"].(bson.M)["url"] = album.Url

@@ -53,7 +53,7 @@ func main() {
 		{Key: "artists", Value: 1},
 		{Key: "title", Value: 1},
 	})
-	singlesCollection = createCollectionIfNotExists(ctx, database, singlesIndexName)
+	singlesCollection = createCollectionIfNotExists(ctx, database, singlesCollectionName)
 	createIndexForCollection(ctx, singlesCollection, singlesIndexName, []IndexField{
 		{Key: "title", Value: 1},
 		{Key: "artists", Value: 1},
@@ -75,7 +75,10 @@ func main() {
 	log.Println("Indexes created successfully")
 	// http api
 	httpListenAddress := getEnv("ADDRESS", "0.0.0.0")
-	httpListenPort := getEnv("PORT", "8080")
+	httpListenPort := getEnv("PORT", "9999")
+	useTLS := getEnvBool("USE_TLS", false)
+	certFile := getEnv("CERT_FILE", "server.crt")
+	keyFile := getEnv("KEY_FILE", "server.key")
 
 	distFS, _ := fs.Sub(staticFiles, "dist")
 	// 构建静态文件服务
@@ -83,12 +86,20 @@ func main() {
 
 	http.Handle("/", staticServer)
 
-	go http.HandleFunc("/music", corsMiddleware(handleMusic))
-	go http.HandleFunc("/books", corsMiddleware(handleBooks))
-	go http.HandleFunc("/movies", corsMiddleware(handleMovies))
-	go http.HandleFunc("/single", corsMiddleware(handleSingle))
+	http.HandleFunc("/music", corsMiddleware(handleMusic))
+	http.HandleFunc("/books", corsMiddleware(handleBooks))
+	http.HandleFunc("/movies", corsMiddleware(handleMovies))
+	http.HandleFunc("/single", corsMiddleware(handleSingle))
 	bindAddress := fmt.Sprintf("%s:%s", httpListenAddress, httpListenPort)
-	log.Printf("Server listening on %s", bindAddress)
+	if useTLS {
+		log.Printf("HTTPS server listening on %s (cert=%s, key=%s)", bindAddress, certFile, keyFile)
+		err := http.ListenAndServeTLS(bindAddress, certFile, keyFile, nil)
+		if err != nil {
+			log.Printf("Failed to ListenAndServeTLS: %v\n", err.Error())
+		}
+		return
+	}
+	log.Printf("HTTP server listening on %s", bindAddress)
 	err := http.ListenAndServe(bindAddress, nil)
 	if err != nil {
 		log.Printf("Failed to ListenAndServe: %v\n", err.Error())
@@ -122,7 +133,7 @@ func createIndexForCollection(ctx context.Context, collection *mongo.Collection,
 }
 
 func getConnection() *mongo.Client {
-	mongo_url := getEnv("MONGO_URL", "192.168.237.1")
+	mongo_url := getEnv("MONGO_URL", "192.168.79.1")
 	mongo_port := getEnvInt("MONGO_PORT", 7899)
 	mongo_user := getEnv("MONGO_USER", "jask")
 	mongo_password := getEnv("MONGO_PASSWORD", "theonlylove145")

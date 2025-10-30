@@ -19,10 +19,11 @@ type AlbumSingle struct {
 func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := NewFilterBuilder().
-		WithStringField(q, "album").
-		WithArrayField(q, "artists").
-		WithStringField(q, "title").
+		WithRegexField(q, "album", "album").
+		WithArrayAllRegex(q, "artists", "artists").
+		WithRegexField(q, "artist", "artists").
 		Build()
+
 	log.Printf("Album Single endpoint called with filter: %v", filter)
 	ctx := r.Context()
 	cursor, err := singlesCollection.Find(ctx, filter)
@@ -126,7 +127,6 @@ func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
 			Message: "Single already exists",
 		})
 	}
-	return
 }
 
 func handleAlbumSingleDelete(w http.ResponseWriter, r *http.Request) {
