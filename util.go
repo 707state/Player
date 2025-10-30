@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 func getEnv(key, defaultValue string) string {
@@ -55,4 +58,43 @@ func removeStringInPlace(slice *[]string, target string) {
 			i-- // 调整索引
 		}
 	}
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+type SuccessResponse struct {
+	Message string `json:"message"`
+}
+
+func jsonError(w http.ResponseWriter, message string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+}
+
+type Date struct {
+	time.Time
+}
+
+const dateLayout = "2006-01-02"
+
+func (d *Date) UnmarshalJSON(b []byte) error {
+	var dateStr string
+	if err := json.Unmarshal(b, &dateStr); err != nil {
+		return err
+	}
+
+	t, err := time.Parse(dateLayout, dateStr)
+	if err != nil {
+		return fmt.Errorf("invalid date format, expected yyyy-mm-dd: %w", err)
+	}
+
+	d.Time = t
+	return nil
+}
+
+func (d Date) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.Format(dateLayout))
 }

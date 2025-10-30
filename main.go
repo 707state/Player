@@ -15,12 +15,14 @@ import (
 )
 
 const (
-	albumCollectionName = "albums"
-	albumIndexName      = "album_title_artist_index"
-	bookCollectionName  = "books"
-	bookIndexName       = "book_title_author_index"
-	filmCollectionName  = "films"
-	filmIndexName       = "film_title_director_index"
+	albumCollectionName   = "albums"
+	albumIndexName        = "album_title_artist_index"
+	singlesCollectionName = "singles"
+	singlesIndexName      = "album_artists_title_index"
+	bookCollectionName    = "books"
+	bookIndexName         = "book_title_author_index"
+	filmCollectionName    = "films"
+	filmIndexName         = "film_title_director_index"
 )
 
 type IndexField struct {
@@ -29,6 +31,7 @@ type IndexField struct {
 }
 
 var albumCollection *mongo.Collection
+var singlesCollection *mongo.Collection
 var bookCollection *mongo.Collection
 var filmCollection *mongo.Collection
 
@@ -47,8 +50,14 @@ func main() {
 	// Create albums collection if not exists and create index
 	albumCollection = createCollectionIfNotExists(ctx, database, albumCollectionName)
 	createIndexForCollection(ctx, albumCollection, albumIndexName, []IndexField{
-		{Key: "artist", Value: 1},
+		{Key: "artists", Value: 1},
 		{Key: "title", Value: 1},
+	})
+	singlesCollection = createCollectionIfNotExists(ctx, database, singlesIndexName)
+	createIndexForCollection(ctx, singlesCollection, singlesIndexName, []IndexField{
+		{Key: "title", Value: 1},
+		{Key: "artists", Value: 1},
+		{Key: "album", Value: 1},
 	})
 	// Create books collection if not exists and create index
 	bookCollection = createCollectionIfNotExists(ctx, database, bookCollectionName)
@@ -77,7 +86,7 @@ func main() {
 	go http.HandleFunc("/music", corsMiddleware(handleMusic))
 	go http.HandleFunc("/books", corsMiddleware(handleBooks))
 	go http.HandleFunc("/movies", corsMiddleware(handleMovies))
-	go http.HandleFunc("/single", corsMiddleware(handleAlbumSingle))
+	go http.HandleFunc("/single", corsMiddleware(handleSingle))
 	bindAddress := fmt.Sprintf("%s:%s", httpListenAddress, httpListenPort)
 	log.Printf("Server listening on %s", bindAddress)
 	err := http.ListenAndServe(bindAddress, nil)
