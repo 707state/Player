@@ -76,9 +76,9 @@ func main() {
 	// http api
 	httpListenAddress := getEnv("ADDRESS", "0.0.0.0")
 	httpListenPort := getEnv("PORT", "9999")
-	useTLS := getEnvBool("USE_TLS", false)
-	certFile := getEnv("CERT_FILE", "server.crt")
-	keyFile := getEnv("KEY_FILE", "server.key")
+	useTLS := getEnvBool("USE_TLS", true)
+	certFile := getEnv("CERT_FILE", "./localhost.pem")
+	keyFile := getEnv("KEY_FILE", "./localhost-key.pem")
 
 	distFS, _ := fs.Sub(staticFiles, "dist")
 	// 构建静态文件服务

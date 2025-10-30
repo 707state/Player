@@ -21,25 +21,44 @@ func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
 	filter := NewFilterBuilder().
 		WithRegexField(q, "album", "album").
 		WithArrayAllRegex(q, "artists", "artists").
-		WithRegexField(q, "artist", "artists").
+		WithStringField(q, "title").
 		Build()
-
-	log.Printf("Album Single endpoint called with filter: %v", filter)
 	ctx := r.Context()
-	cursor, err := singlesCollection.Find(ctx, filter)
-	if err != nil {
-		jsonError(w, "Database error", http.StatusInternalServerError)
+	if _, exists := filter["title"]; exists {
+		log.Printf("Album Single endpoint called with filter: %v", filter)
+		cursor, err := singlesCollection.Find(ctx, filter)
+		if err != nil {
+			jsonError(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		defer cursor.Close(ctx)
+		var albumSingle []AlbumSingle
+		if err = cursor.All(ctx, &albumSingle); err != nil {
+			http.Error(w, "Failed to decode albums", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]bool{"exists": len(albumSingle) > 0})
+	} else {
+		log.Printf("Album Single endpoint called without title with filter: %v", filter)
+		//不存在title，则返回所有单曲
+		cursor, err := singlesCollection.Find(ctx, filter)
+		if err != nil {
+			jsonError(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		defer cursor.Close(ctx)
+		var albumSingle []AlbumSingle
+		if err = cursor.All(ctx, &albumSingle); err != nil {
+			http.Error(w, "Failed to decode albums", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(albumSingle)
 		return
 	}
-	defer cursor.Close(ctx)
-	var albumSingle []AlbumSingle
-	if err = cursor.All(ctx, &albumSingle); err != nil {
-		http.Error(w, "Failed to decode albums", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]bool{"exists": len(albumSingle) > 0})
 }
 
 func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
@@ -55,19 +74,19 @@ func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	filter := bson.M{
-		"title":   single.Title,
+	album_filter := bson.M{
+		"title":   single.Album,
 		"artists": single.Artists,
 	}
 
 	var existingAlbum Album
-	err := albumCollection.FindOne(ctx, filter).Decode(&existingAlbum)
+	err := albumCollection.FindOne(ctx, album_filter).Decode(&existingAlbum)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			// 创建新专辑并添加单曲
 			newAlbum := Album{
-				Title:   single.Title,
+				Title:   single.Album,
 				Artists: single.Artists,
 			}
 			_, err = albumCollection.InsertOne(ctx, newAlbum)
