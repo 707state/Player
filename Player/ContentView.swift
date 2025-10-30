@@ -5,12 +5,12 @@
 //  Created by jask on 2025/9/18.
 //
 
-import SwiftUI
 import AVFoundation
+import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var player: MusicModel
-    
+    @State private var showSettings = false
     var body: some View {
         NavigationSplitView {
             // Scrollable file view
@@ -18,12 +18,18 @@ struct ContentView: View {
                 List {
                     OutlineGroup(root, children: \.children) { node in
                         if node.isDirectory {
-                            Label(node.url.lastPathComponent, systemImage: "folder")
+                            Label(
+                                node.url.lastPathComponent,
+                                systemImage: "folder"
+                            )
                         } else {
                             Button {
                                 player.play(file: node.url)
                             } label: {
-                                Label(node.url.lastPathComponent, systemImage: "music.note")
+                                Label(
+                                    node.url.lastPathComponent,
+                                    systemImage: "music.note"
+                                )
                             }
                         }
                     }
@@ -38,12 +44,24 @@ struct ContentView: View {
             PlayerPanel(player: player)
         }
         .toolbar {
-            Button("Select music directory") {
-                selectDirectory()
+            ToolbarItem {
+                Button {
+                    showSettings.toggle()
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                }
+            }
+            ToolbarItem {
+                Button("Select music directory") {
+                    selectDirectory()
+                }
             }
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
     }
-    
+
     private func selectDirectory() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -63,7 +81,7 @@ func formatTime(_ time: TimeInterval) -> String {
 
 struct PlayerPanel: View {
     @ObservedObject var player: MusicModel
-    
+
     var body: some View {
         ZStack {
             // 背景层：模糊的 artwork
@@ -74,7 +92,9 @@ struct PlayerPanel: View {
                     .blur(radius: 30)
                     .overlay(
                         LinearGradient(
-                            gradient: Gradient(colors: [.black.opacity(0.4), .clear]),
+                            gradient: Gradient(colors: [
+                                .black.opacity(0.4), .clear,
+                            ]),
                             startPoint: .bottom,
                             endPoint: .top
                         )
@@ -85,7 +105,7 @@ struct PlayerPanel: View {
                 Color.gray.opacity(0.2)
                     .ignoresSafeArea()
             }
-            
+
             // 前景层：播放器内容
             VStack(spacing: 20) {
                 if let artwork = player.artwork {
@@ -102,14 +122,14 @@ struct PlayerPanel: View {
                         .frame(width: 120, height: 120)
                         .opacity(0.3)
                 }
-                
+
                 if let currentItem = player.currentFile {
                     Text("Now playing：\(currentItem.lastPathComponent)")
                         .font(.headline)
                 } else {
                     Text("Please select an mp3/flac file")
                 }
-                
+
                 // 播放进度滑杆
                 Slider(
                     value: Binding(
@@ -119,28 +139,47 @@ struct PlayerPanel: View {
                     in: 0...(player.duration)
                 )
                 .disabled(player.currentFile == nil)
-                
+
                 HStack {
                     Text(formatTime(player.currentTime))
                     Spacer()
                     Text(formatTime(player.duration))
                 }
                 .font(.caption)
-                
+
                 HStack(spacing: 40) {
                     Button {
-                        if player.isPlaying { player.pause() } else { player.resume() }
+                        if player.isPlaying {
+                            player.pause()
+                        } else {
+                            player.resume()
+                        }
                     } label: {
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                        Image(
+                            systemName: player.isPlaying
+                                ? "pause.fill" : "play.fill"
+                        )
                     }
-                    Button { player.stop() } label: {
+                    Button {
+                        player.stop()
+                    } label: {
                         Image(systemName: "stop.fill")
                     }
-                    Button { player.playNext() } label: {
+                    
+                    Button {
+                        player.playNext()
+                    } label: {
                         Image(systemName: "forward.fill")
                     }
+                    // Like button next to Play next
+                    Button {
+                        player.toggleLike()
+                    } label: {
+                        Image(systemName: player.isLiked ? "heart.fill" : "heart")
+                            .foregroundStyle(player.isLiked ? .red : .primary)
+                    }
                 }
-                
+
                 // 音量控制
                 Slider(value: $player.volume, in: 0...1)
                     .frame(width: 120, height: 20)

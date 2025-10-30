@@ -29,6 +29,10 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
         }
     }
     @Published var artwork: NSImage?=nil
+    @Published var single: String = ""
+    @Published var album: String = ""
+    @Published var artist: String = ""
+    @Published var isLiked: Bool = false
     
     private var player: AVAudioPlayer?
     private var timer: Timer?
@@ -98,8 +102,16 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             duration = player?.duration ?? 0
             currentFile = file
             isPlaying = true
+            // Extract metadata (artwork + basic tags)
             Task.detached { @MainActor in
                 self.artwork = try await self.extractArtwork(from: file)
+                let meta = try? await self.extractBasicMetadata(from: file)
+                if let meta = meta {
+                    self.single = meta.title
+                    self.artist = meta.artist
+                    self.album = meta.album
+                }
+                await self.checkLikeStatus()
             }
             startTimer()
         } catch {
@@ -163,6 +175,24 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
 }
 
 extension MusicModel{
+    // MARK: - Metadata
+    struct BasicMeta { let title: String; let artist: String; let album: String }
+    func extractBasicMetadata(from url: URL) async throws -> BasicMeta {
+        let asset = AVURLAsset(url: url)
+        var title = url.deletingPathExtension().lastPathComponent
+        var artist = ""
+        var album = ""
+        for format in try await asset.load(.availableMetadataFormats) {
+            let metadata = try await asset.loadMetadata(for: format)
+            for item in metadata {
+                if item.commonKey == .commonKeyTitle, let t = try? await item.load(.stringValue), !t.isEmpty { title = t }
+                if item.commonKey == .commonKeyArtist, let a = try? await item.load(.stringValue), !a.isEmpty { artist = a }
+                if item.commonKey == .commonKeyAlbumName, let al = try? await item.load(.stringValue), !al.isEmpty { album = al }
+            }
+        }
+        return BasicMeta(title: title, artist: artist, album: album)
+    }
+
     func extractArtwork(from url:URL) async throws ->NSImage? {
         let asset=AVURLAsset(url: url)
         for format in try await asset.load(.availableMetadataFormats) {
@@ -188,5 +218,96 @@ extension MusicModel{
             }
         }
         return nil
+    }
+}
+
+// MARK: - Backend integration
+extension MusicModel {
+    private func logNetworkError(context: String, url: URL?, response: URLResponse?, data: Data?, error: Error?) {
+        print("[Network] Context=\(context)")
+        if let url { print("[Network] URL=\(url.absoluteString)") }
+        if let http = response as? HTTPURLResponse {
+            print("[Network] Status=\(http.statusCode)")
+        }
+        if let error { print("[Network] Error=\(error.localizedDescription)") }
+        if let data, let text = String(data: data, encoding: .utf8) {
+            print("[Network] Body=\(text)")
+        }
+    }
+    private func backendBaseURL() -> URL? {
+        let str = UserDefaults.standard.string(forKey: "backend_url") ?? ""
+        guard !str.trimmingCharacters(in: .whitespaces).isEmpty, let url = URL(string: str) else {
+            return nil
+        }
+        return url
+    }
+
+    private func buildArtistsArray(from artistString: String) -> [String] {
+        // Split by common delimiters
+        let delimiters: CharacterSet = [",", "/", "&", "、"]
+        let parts = artistString.components(separatedBy: delimiters)
+            .map { $0.replacingOccurrences(of: "feat.", with: "", options: .caseInsensitive) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? [artistString].filter { !$0.isEmpty } : parts
+    }
+
+    @MainActor
+    func checkLikeStatus() async {
+        guard let base = backendBaseURL(), !album.isEmpty else {
+            self.isLiked = false
+            return
+        }
+        // Query by album + one artist
+        let oneArtist = buildArtistsArray(from: artist).joined(separator:",")
+        var comps = URLComponents(url: base.appendingPathComponent("/single"), resolvingAgainstBaseURL: false)!
+        comps.queryItems = [
+            URLQueryItem(name: "album", value: album),
+            URLQueryItem(name: "artist", value: oneArtist)
+        ]
+        guard let url = comps.url else { self.isLiked = false; return }
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let exists = obj["exists"] as? Bool {
+                    self.isLiked = exists
+                } else {
+                    self.isLiked = false
+                }
+            } else {
+                logNetworkError(context: "checkLikeStatus", url: url, response: response, data: data, error: nil)
+                self.isLiked = false
+            }
+        } catch {
+            logNetworkError(context: "checkLikeStatus", url: url, response: nil, data: nil, error: error)
+            self.isLiked = false
+        }
+    }
+
+    func toggleLike() {
+        Task {
+            guard let base = backendBaseURL() else { return }
+            let artistsArray = buildArtistsArray(from: artist)
+            let payload: [String: Any] = [
+                "title": single,
+                "artists": artistsArray,
+                "album": album,
+            ]
+            do {
+                var request = URLRequest(url: base.appendingPathComponent("/single"))
+                request.httpMethod = isLiked ? "DELETE" : "POST"
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                    await MainActor.run { self.isLiked.toggle() }
+                } else {
+                    logNetworkError(context: "toggleLike", url: request.url, response: response, data: data, error: nil)
+                }
+            } catch {
+                logNetworkError(context: "toggleLike", url: nil, response: nil, data: nil, error: error)
+            }
+        }
     }
 }

@@ -20,8 +20,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             let menu = NSMenu()
-            menu.addItem(NSMenuItem(title: "Select Directory", action: #selector(self.selectDirectory), keyEquivalent: "d"))
-            menu.addItem(NSMenuItem(title: "Play/Pause", action: #selector(self.togglePlayPause), keyEquivalent: "p"))
+            menu.addItem(NSMenuItem(title: "Select Directory", action: #selector(self.selectDirectory), keyEquivalent: "s"))
+            menu.addItem(NSMenuItem(title: "Play/Pause", action: #selector(self.togglePlayPause), keyEquivalent: "t"))
             menu.addItem(NSMenuItem(title: "Next", action: #selector(self.playNext), keyEquivalent: "n"))
             menu.addItem(NSMenuItem.separator())
             menu.addItem(NSMenuItem(title: "Quit", action: #selector(self.quit), keyEquivalent: "q"))
