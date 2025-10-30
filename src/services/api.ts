@@ -1,5 +1,5 @@
 import type { Album, Book, Movie } from "./types.ts";
-const API_BASE_URL = "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_VUE_APP_BACKEND_URL;
 // API service for music
 export const musicApi = {
   // Get all albums
@@ -18,8 +18,9 @@ export const musicApi = {
         }
       });
     }
-
+    console.log("Fetching data...")
     const response = await fetch(`${API_BASE_URL}/music?${queryParams}`);
+    console.log("Got response")
     if (!response.ok) {
       throw new Error(`Failed to fetch albums: ${response.statusText}`);
     }
@@ -28,6 +29,7 @@ export const musicApi = {
 
   // Create or update album
   async saveAlbum(album: Album): Promise<{ message: string }> {
+    console.log(`The backend URL: ${API_BASE_URL}`)
     const response = await fetch(`${API_BASE_URL}/music`, {
       method: "POST",
       headers: {

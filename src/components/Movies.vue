@@ -194,7 +194,7 @@ onMounted(() => {
                 </div>
             </div>
 
-            <div v-if="movies.length === 0 && !loading" class="empty-state">
+            <div v-if="movies===null || (movies.length === 0 && !loading)" class="empty-state">
                 <el-empty description="暂无影视，点击添加按钮开始记录" />
             </div>
         </div>
