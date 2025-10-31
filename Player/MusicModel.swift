@@ -104,12 +104,12 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             isPlaying = true
             // Extract metadata (artwork + basic tags)
             Task.detached { @MainActor in
-                self.artwork = try await self.extractArtwork(from: file)
                 let meta = try? await self.extractBasicMetadata(from: file)
                 if let meta = meta {
                     self.single = meta.title
                     self.artist = meta.artist
                     self.album = meta.album
+                    self.artwork = meta.artwork
                 }
                 await self.checkLikeStatus()
             }
@@ -176,48 +176,36 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
 
 extension MusicModel{
     // MARK: - Metadata
-    struct BasicMeta { let title: String; let artist: String; let album: String }
+    struct BasicMeta { let title: String; let artist: String; let album: String; let artwork: NSImage? }
     func extractBasicMetadata(from url: URL) async throws -> BasicMeta {
         let asset = AVURLAsset(url: url)
         var title = url.deletingPathExtension().lastPathComponent
         var artist = ""
         var album = ""
+        var artwork: NSImage?=nil
         for format in try await asset.load(.availableMetadataFormats) {
             let metadata = try await asset.loadMetadata(for: format)
             for item in metadata {
                 if item.commonKey == .commonKeyTitle, let t = try? await item.load(.stringValue), !t.isEmpty { title = t }
                 if item.commonKey == .commonKeyArtist, let a = try? await item.load(.stringValue), !a.isEmpty { artist = a }
                 if item.commonKey == .commonKeyAlbumName, let al = try? await item.load(.stringValue), !al.isEmpty { album = al }
-            }
-        }
-        return BasicMeta(title: title, artist: artist, album: album)
-    }
-
-    func extractArtwork(from url:URL) async throws ->NSImage? {
-        let asset=AVURLAsset(url: url)
-        for format in try await asset.load(.availableMetadataFormats) {
-            
-            let metadata = try await asset.loadMetadata(for: format)
-            for item in metadata {
-                
-                if item.commonKey == .commonKeyArtwork {
-                    
+                if item.commonKey == .commonKeyArtwork{
                     if let data = try? await item.load(.dataValue) {
                         if let image = NSImage(data: data) {
-                            return image
+                            artwork = image
                         }
                     }
                     
                     if let dict = try? await item.load(.value) as? [String: Any],
                        let data = dict["data"] as? Data {
                         if let image = NSImage(data: data) {
-                            return image
+                            artwork = image
                         }
                     }
                 }
             }
         }
-        return nil
+        return BasicMeta(title: title, artist: artist, album: album,artwork: artwork)
     }
 }
 
@@ -246,7 +234,6 @@ extension MusicModel {
         // Split by common delimiters
         let delimiters: CharacterSet = [",", "/", "&", "、"]
         let parts = artistString.components(separatedBy: delimiters)
-            .map { $0.replacingOccurrences(of: "feat.", with: "", options: .caseInsensitive) }
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         return parts.isEmpty ? [artistString].filter { !$0.isEmpty } : parts
@@ -263,7 +250,8 @@ extension MusicModel {
         var comps = URLComponents(url: base.appendingPathComponent("/single"), resolvingAgainstBaseURL: false)!
         comps.queryItems = [
             URLQueryItem(name: "album", value: album),
-            URLQueryItem(name: "artist", value: oneArtist)
+            URLQueryItem(name: "artists", value: oneArtist),
+            URLQueryItem(name:"title",value: single),
         ]
         guard let url = comps.url else { self.isLiked = false; return }
         do {
