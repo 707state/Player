@@ -4,23 +4,24 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type AlbumSingle struct {
-	Title   string   `json:"title" bson:"title"`
-	Artists []string `json:"artists" bson:"artists"`
-	Album   string   `json:"album" bson:"album"`
+	Title        string    `json:"title" bson:"title"`
+	Artists      []string  `json:"artists" bson:"artists"`
+	Album        string    `json:"album" bson:"album"`
+	LastModified time.Time `json:"last_modified" bson:"last_modified"`
 }
 
 func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := NewFilterBuilder().
-		WithRegexField(q, "album", "album").
-		WithArrayAllRegex(q, "artists", "artists").
+		WithStringField(q, "album").
+		WithArrayField(q, "artists").
 		WithStringField(q, "title").
 		Build()
 	ctx := r.Context()
@@ -67,47 +68,14 @@ func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	single.LastModified = time.Now()
 
-	if single.Title == "" || single.Artists == nil || len(single.Artists) == 0 || single.Album == "" {
-		jsonError(w, "Title, artist and single are required", http.StatusBadRequest)
+	if single.Title == "" || len(single.Artists) == 0 || single.Album == "" {
+		jsonError(w, "Album, artist and single are required", http.StatusBadRequest)
 		return
 	}
 
 	ctx := r.Context()
-	album_filter := bson.M{
-		"title":   single.Album,
-		"artists": single.Artists,
-	}
-
-	var existingAlbum Album
-	err := albumCollection.FindOne(ctx, album_filter).Decode(&existingAlbum)
-
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			// 创建新专辑并添加单曲
-			newAlbum := Album{
-				Title:   single.Album,
-				Artists: single.Artists,
-			}
-			_, err = albumCollection.InsertOne(ctx, newAlbum)
-			if err != nil {
-				jsonError(w, "Failed to create album and add single", http.StatusInternalServerError)
-				return
-			}
-			_, err = singlesCollection.InsertOne(ctx, single)
-			if err != nil {
-				jsonError(w, "Failed to insert data to collection", http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(SuccessResponse{Message: "Album created and single added successfully"})
-			return
-		}
-		jsonError(w, "Database error", http.StatusInternalServerError)
-		return
-	}
-
 	// 检查单曲是否已存在
 	single_filter := bson.M{
 		"album":   single.Album,
@@ -116,9 +84,10 @@ func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
 	}
 	update := bson.M{
 		"$setOnInsert": bson.M{
-			"album":   single.Album,
-			"artists": single.Artists,
-			"title":   single.Title,
+			"album":         single.Album,
+			"artists":       single.Artists,
+			"title":         single.Title,
+			"last_modified": single.LastModified,
 		},
 	}
 	result, err := singlesCollection.UpdateOne(

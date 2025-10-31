@@ -22,7 +22,7 @@ func (fb *FilterBuilder) Build() bson.M {
 
 func (fb *FilterBuilder) WithStringField(q url.Values, fieldName string) *FilterBuilder {
 	if v := strings.TrimSpace(q.Get(fieldName)); v != "" {
-		fb.filter[fieldName] = bson.M{"$regex": v, "$options": "i"}
+		fb.filter[fieldName] = v
 	}
 	return fb
 }
@@ -42,7 +42,7 @@ func (fb *FilterBuilder) WithArrayField(q url.Values, fieldName string) *FilterB
 		return fb
 	}
 	parts := []string{}
-	for _, p := range strings.Split(raw, ",") {
+	for p := range strings.SplitSeq(raw, ",") {
 		if t := strings.TrimSpace(p); t != "" {
 			parts = append(parts, t)
 		}
@@ -60,26 +60,6 @@ func (fb *FilterBuilder) WithRegexField(q url.Values, paramName, fieldName strin
 	}
 	if v := strings.TrimSpace(q.Get(paramName)); v != "" {
 		fb.filter[fieldName] = bson.M{"$regex": v, "$options": "i"}
-	}
-	return fb
-}
-
-// WithArrayAllRegex matches array fields requiring all CSV-provided values (case-insensitive)
-func (fb *FilterBuilder) WithArrayAllRegex(q url.Values, paramName, fieldName string) *FilterBuilder {
-	raw := strings.TrimSpace(q.Get(paramName))
-	if raw == "" {
-		return fb
-	}
-	values := []any{}
-	for _, p := range strings.Split(raw, ",") {
-		name := strings.TrimSpace(p)
-		if name == "" {
-			continue
-		}
-		values = append(values, bson.Regex{Pattern: name, Options: "i"})
-	}
-	if len(values) > 0 {
-		fb.filter[fieldName] = bson.M{"$all": values}
 	}
 	return fb
 }
