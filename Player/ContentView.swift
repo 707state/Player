@@ -61,7 +61,7 @@ struct ContentView: View {
             SettingsView()
         }
     }
-
+    
     private func selectDirectory() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -81,7 +81,9 @@ func formatTime(_ time: TimeInterval) -> String {
 
 struct PlayerPanel: View {
     @ObservedObject var player: MusicModel
-
+    @State private var imageSize: CGSize = CGSize(width: 400, height: 400)
+    @State private var dragOffset: CGSize = .zero
+    @State private var isHovering = false
     var body: some View {
         ZStack {
             // 背景层：模糊的 artwork
@@ -105,16 +107,37 @@ struct PlayerPanel: View {
                 Color.gray.opacity(0.2)
                     .ignoresSafeArea()
             }
-
+            
             // 前景层：播放器内容
             VStack(spacing: 20) {
                 if let artwork = player.artwork {
                     Image(nsImage: artwork)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 200, height: 200)
+                        .frame(width: imageSize.width,height: imageSize.height)
                         .cornerRadius(10)
                         .shadow(radius: 4)
+                        .overlay(
+                            ZStack{
+                                if (isHovering){
+                                    // 加一个右下角的“拖拽角标”
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .foregroundColor(.gray)
+                                        .padding(8)
+                                        .background(Color.white.opacity(0.7))
+                                        .cornerRadius(6)
+                                        .padding(6)
+                                        .gesture(resizeGesture) // 拖动角标调整大小
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                                    
+                                }
+                            }
+                        )
+                        .onHover { hovering in
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                isHovering = hovering
+                            }
+                        }
                 } else {
                     Image(systemName: "music.note")
                         .resizable()
@@ -122,14 +145,14 @@ struct PlayerPanel: View {
                         .frame(width: 120, height: 120)
                         .opacity(0.3)
                 }
-
+                
                 if let currentItem = player.currentFile {
                     Text("Now playing：\(currentItem.lastPathComponent)")
                         .font(.headline)
                 } else {
                     Text("Please select an mp3/flac file")
                 }
-
+                
                 // 播放进度滑杆
                 Slider(
                     value: Binding(
@@ -139,14 +162,14 @@ struct PlayerPanel: View {
                     in: 0...(player.duration)
                 )
                 .disabled(player.currentFile == nil)
-
+                
                 HStack {
                     Text(formatTime(player.currentTime))
                     Spacer()
                     Text(formatTime(player.duration))
                 }
                 .font(.caption)
-
+                
                 HStack(spacing: 40) {
                     Button {
                         if player.isPlaying {
@@ -157,7 +180,7 @@ struct PlayerPanel: View {
                     } label: {
                         Image(
                             systemName: player.isPlaying
-                                ? "pause.fill" : "play.fill"
+                            ? "pause.fill" : "play.fill"
                         )
                     }
                     Button {
@@ -179,7 +202,7 @@ struct PlayerPanel: View {
                             .foregroundStyle(player.isLiked ? .red : .primary)
                     }
                 }
-
+                
                 // 音量控制
                 Slider(value: $player.volume, in: 0...1)
                     .frame(width: 120, height: 20)
@@ -187,5 +210,13 @@ struct PlayerPanel: View {
             }
             .padding()
         }
+    }
+    /// 拖动调整大小的手势
+    private var resizeGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                imageSize.width = max(100, imageSize.width + value.translation.width)
+                imageSize.height = max(100, imageSize.height + value.translation.height)
+            }
     }
 }

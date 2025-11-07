@@ -28,7 +28,7 @@ struct PlayerApp: App {
                         player.resume()
                     }
                 }
-                .keyboardShortcut(.space,modifiers: [])
+                .keyboardShortcut("p",modifiers: [.command])
             }
             CommandMenu("Next"){
                 Button("Next"){
