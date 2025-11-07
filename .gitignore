@@ -7,3 +7,5 @@ dist/
 localhost-key.pem
 localhost.pem
 
+llm-chat
+*.json

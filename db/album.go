@@ -1,8 +1,9 @@
-package main
+package db
 
 import (
 	"encoding/json"
 	"log"
+	"musaic/util"
 	"net/http"
 	"time"
 
@@ -28,7 +29,7 @@ func handleMusicGet(w http.ResponseWriter, r *http.Request) {
 
 	// parse query params from URL and build a MongoDB filter
 	q := r.URL.Query()
-	filter := NewFilterBuilder().
+	filter := util.NewFilterBuilder().
 		WithStringField(q, "title").
 		WithArrayField(q, "artists").
 		Build()
@@ -57,13 +58,13 @@ func handleMusicGet(w http.ResponseWriter, r *http.Request) {
 func handleMusicPost(w http.ResponseWriter, r *http.Request) {
 	var album Album
 	if err := json.NewDecoder(r.Body).Decode(&album); err != nil {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 	log.Printf("Music API endpoint called with album: %v", album)
 	// 验证必需字段
 	if album.Title == "" || len(album.Artists) == 0 {
-		jsonError(w, "Title and Artist are required", http.StatusBadRequest)
+		util.JsonError(w, "Title and Artist are required", http.StatusBadRequest)
 		return
 	}
 
@@ -83,15 +84,15 @@ func handleMusicPost(w http.ResponseWriter, r *http.Request) {
 			// 不存在则插入新记录
 			_, err = albumCollection.InsertOne(ctx, album)
 			if err != nil {
-				jsonError(w, "Failed to insert album", http.StatusInternalServerError)
+				util.JsonError(w, "Failed to insert album", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(SuccessResponse{Message: "Album created successfully"})
+			json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Album created successfully"})
 			return
 		}
-		jsonError(w, "Database error", http.StatusInternalServerError)
+		util.JsonError(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
@@ -119,26 +120,26 @@ func handleMusicPost(w http.ResponseWriter, r *http.Request) {
 	if len(update["$set"].(bson.M)) > 0 {
 		_, err = albumCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			jsonError(w, "Failed to update album", http.StatusInternalServerError)
+			util.JsonError(w, "Failed to update album", http.StatusInternalServerError)
 			return
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SuccessResponse{Message: "Album updated successfully"})
+	json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Album updated successfully"})
 }
 
 func handleMusicDelete(w http.ResponseWriter, r *http.Request) {
 	var album Album
 	if err := json.NewDecoder(r.Body).Decode(&album); err != nil {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 	log.Printf("Music API endpoint called with album: %v", album)
 
 	// 验证必需字段
 	if album.Title == "" || len(album.Artists) == 0 {
-		jsonError(w, "Title and Artist are required", http.StatusBadRequest)
+		util.JsonError(w, "Title and Artist are required", http.StatusBadRequest)
 		return
 	}
 
@@ -150,15 +151,15 @@ func handleMusicDelete(w http.ResponseWriter, r *http.Request) {
 
 	result, err := albumCollection.DeleteOne(ctx, filter)
 	if err != nil {
-		jsonError(w, "Failed to delete album", http.StatusInternalServerError)
+		util.JsonError(w, "Failed to delete album", http.StatusInternalServerError)
 		return
 	}
 
 	if result.DeletedCount == 0 {
-		jsonError(w, "Album not found", http.StatusNotFound)
+		util.JsonError(w, "Album not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SuccessResponse{Message: "Album deleted successfully"})
+	json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Album deleted successfully"})
 }

@@ -1,11 +1,11 @@
-package main
+package db
 
 import (
 	"log"
 	"net/http"
 )
 
-func handleMusic(w http.ResponseWriter, r *http.Request) {
+func HandleMusic(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Music API endpoint called")
 	switch r.Method {
 	case http.MethodGet:
@@ -19,7 +19,7 @@ func handleMusic(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleSingle(w http.ResponseWriter, r *http.Request) {
+func HandleSingle(w http.ResponseWriter, r *http.Request) {
 	log.Printf("AlbumSingle API endpoint called")
 	switch r.Method {
 	case http.MethodGet:
@@ -33,7 +33,7 @@ func handleSingle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleBooks(w http.ResponseWriter, r *http.Request) {
+func HandleBooks(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Books API endpoint called")
 	switch r.Method {
 	case http.MethodGet:
@@ -47,7 +47,7 @@ func handleBooks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleMovies(w http.ResponseWriter, r *http.Request) {
+func HandleMovies(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Movies API endpoint called")
 	switch r.Method {
 	case http.MethodGet:

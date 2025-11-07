@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"encoding/json"
@@ -7,13 +7,13 @@ import (
 	"strconv"
 )
 
-func getEnv(key, defaultValue string) string {
+func GetEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return defaultValue
 }
-func getEnvInt(key string, defaultValue int) int {
+func GetEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if value, err := strconv.Atoi(value); err == nil {
 			return value
@@ -22,7 +22,7 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func getEnvBool(key string, defaultValue bool) bool {
+func GetEnvBool(key string, defaultValue bool) bool {
 	if value := os.Getenv(key); value != "" {
 		if value, err := strconv.ParseBool(value); err == nil {
 			return value
@@ -36,7 +36,7 @@ func enableCORS(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
-func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func CorsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		enableCORS(w)
 
@@ -57,7 +57,7 @@ type SuccessResponse struct {
 	Message string `json:"message"`
 }
 
-func jsonError(w http.ResponseWriter, message string, code int) {
+func JsonError(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(ErrorResponse{Error: message})

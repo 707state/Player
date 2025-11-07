@@ -1,8 +1,9 @@
-package main
+package db
 
 import (
 	"encoding/json"
 	"log"
+	"musaic/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -82,14 +83,14 @@ func handleBooksGet(w http.ResponseWriter, r *http.Request) {
 func handleBooksPost(w http.ResponseWriter, r *http.Request) {
 	var book Book
 	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 	log.Printf("Books API endpoint called with book: %v", book)
 
 	// 验证必需字段
 	if book.Title == "" || book.Author == "" {
-		jsonError(w, "Title and Author are required", http.StatusBadRequest)
+		util.JsonError(w, "Title and Author are required", http.StatusBadRequest)
 		return
 	}
 
@@ -109,15 +110,15 @@ func handleBooksPost(w http.ResponseWriter, r *http.Request) {
 			// 不存在则插入新记录
 			_, err = bookCollection.InsertOne(ctx, book)
 			if err != nil {
-				jsonError(w, "Failed to insert book", http.StatusInternalServerError)
+				util.JsonError(w, "Failed to insert book", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(SuccessResponse{Message: "Book created successfully"})
+			json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Book created successfully"})
 			return
 		}
-		jsonError(w, "Database error", http.StatusInternalServerError)
+		util.JsonError(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 
@@ -146,31 +147,31 @@ func handleBooksPost(w http.ResponseWriter, r *http.Request) {
 	if len(update["$set"].(bson.M)) > 0 {
 		result, err := bookCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			jsonError(w, "Failed to update book", http.StatusInternalServerError)
+			util.JsonError(w, "Failed to update book", http.StatusInternalServerError)
 			return
 		}
 		if result.ModifiedCount == 0 {
-			jsonError(w, "No changes made to book", http.StatusNotModified)
+			util.JsonError(w, "No changes made to book", http.StatusNotModified)
 			return
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SuccessResponse{Message: "Book updated successfully"})
+	json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Book updated successfully"})
 }
 
 func handleBooksDelete(w http.ResponseWriter, r *http.Request) {
 	var book Book
 	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 	log.Printf("Books API endpoint called with book: %v", book)
 
 	// 验证必需字段
 	if book.Title == "" || book.Author == "" {
-		jsonError(w, "Title and Author are required", http.StatusBadRequest)
+		util.JsonError(w, "Title and Author are required", http.StatusBadRequest)
 		return
 	}
 
@@ -182,15 +183,15 @@ func handleBooksDelete(w http.ResponseWriter, r *http.Request) {
 
 	result, err := bookCollection.DeleteOne(ctx, filter)
 	if err != nil {
-		jsonError(w, "Failed to delete book", http.StatusInternalServerError)
+		util.JsonError(w, "Failed to delete book", http.StatusInternalServerError)
 		return
 	}
 
 	if result.DeletedCount == 0 {
-		jsonError(w, "Book not found", http.StatusNotFound)
+		util.JsonError(w, "Book not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SuccessResponse{Message: "Book deleted successfully"})
+	json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Book deleted successfully"})
 }

@@ -1,8 +1,9 @@
-package main
+package db
 
 import (
 	"encoding/json"
 	"log"
+	"musaic/util"
 	"net/http"
 	"time"
 
@@ -19,7 +20,7 @@ type AlbumSingle struct {
 
 func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	filter := NewFilterBuilder().
+	filter := util.NewFilterBuilder().
 		WithStringField(q, "album").
 		WithArrayField(q, "artists").
 		WithStringField(q, "title").
@@ -29,7 +30,7 @@ func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Album Single endpoint called with filter: %v", filter)
 		cursor, err := singlesCollection.Find(ctx, filter)
 		if err != nil {
-			jsonError(w, "Database error", http.StatusInternalServerError)
+			util.JsonError(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 		defer cursor.Close(ctx)
@@ -46,7 +47,7 @@ func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
 		//不存在title，则返回所有单曲
 		cursor, err := singlesCollection.Find(ctx, filter)
 		if err != nil {
-			jsonError(w, "Database error", http.StatusInternalServerError)
+			util.JsonError(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 		defer cursor.Close(ctx)
@@ -65,13 +66,13 @@ func handleAlbumSingleGet(w http.ResponseWriter, r *http.Request) {
 func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
 	var single AlbumSingle
 	if err := json.NewDecoder(r.Body).Decode(&single); err != nil {
-		jsonError(w, "invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	single.LastModified = time.Now()
 
 	if single.Title == "" || len(single.Artists) == 0 || single.Album == "" {
-		jsonError(w, "Album, artist and single are required", http.StatusBadRequest)
+		util.JsonError(w, "Album, artist and single are required", http.StatusBadRequest)
 		return
 	}
 
@@ -97,21 +98,21 @@ func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
 		options.UpdateOne().SetUpsert(true),
 	)
 	if err != nil {
-		jsonError(w, "Single collection update failed!", http.StatusInternalServerError)
+		util.JsonError(w, "Single collection update failed!", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if result.UpsertedCount > 0 {
-		json.NewEncoder(w).Encode(SuccessResponse{
+		json.NewEncoder(w).Encode(util.SuccessResponse{
 			Message: "Single added to collection",
 		})
 	} else if result.ModifiedCount > 0 {
-		json.NewEncoder(w).Encode(SuccessResponse{
+		json.NewEncoder(w).Encode(util.SuccessResponse{
 			Message: "Single modified in collection",
 		})
 	} else {
-		json.NewEncoder(w).Encode(SuccessResponse{
+		json.NewEncoder(w).Encode(util.SuccessResponse{
 			Message: "Single already exists",
 		})
 	}
@@ -120,12 +121,12 @@ func handleAlbumSinglePost(w http.ResponseWriter, r *http.Request) {
 func handleAlbumSingleDelete(w http.ResponseWriter, r *http.Request) {
 	var single AlbumSingle
 	if err := json.NewDecoder(r.Body).Decode(&single); err != nil {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 	log.Printf("AlbumSingle API endpoint called with book: %v", single)
 	if single.Album == "" || single.Title == "" || len(single.Artists) == 0 {
-		jsonError(w, "Album Title and Author and Cut are required", http.StatusBadRequest)
+		util.JsonError(w, "Album Title and Author and Cut are required", http.StatusBadRequest)
 		return
 	}
 	ctx := r.Context()
@@ -136,15 +137,15 @@ func handleAlbumSingleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := singlesCollection.DeleteOne(ctx, filter)
 	if err != nil {
-		jsonError(w, "Failed to delete", http.StatusInternalServerError)
+		util.JsonError(w, "Failed to delete", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if result.DeletedCount > 0 {
-		json.NewEncoder(w).Encode(SuccessResponse{Message: "Single deleted successfully"})
+		json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Single deleted successfully"})
 	} else {
-		json.NewEncoder(w).Encode(SuccessResponse{
+		json.NewEncoder(w).Encode(util.SuccessResponse{
 			Message: "Single does not exists",
 		})
 	}

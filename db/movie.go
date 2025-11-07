@@ -1,8 +1,9 @@
-package main
+package db
 
 import (
 	"encoding/json"
 	"log"
+	"musaic/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -74,12 +75,12 @@ func handleMoviesGet(w http.ResponseWriter, r *http.Request) {
 func handleMoviesPost(w http.ResponseWriter, r *http.Request) {
 	var movie Movie
 	if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 	log.Printf("Movies API endpoint called with movie: %v", movie)
 	if movie.Title == "" || movie.Director == "" {
-		jsonError(w, "Title and Director are required", http.StatusBadRequest)
+		util.JsonError(w, "Title and Director are required", http.StatusBadRequest)
 		return
 	}
 	ctx := r.Context()
@@ -93,15 +94,15 @@ func handleMoviesPost(w http.ResponseWriter, r *http.Request) {
 		if err == mongo.ErrNoDocuments {
 			_, err = filmCollection.InsertOne(ctx, movie)
 			if err != nil {
-				jsonError(w, "Failed to insert movie", http.StatusInternalServerError)
+				util.JsonError(w, "Failed to insert movie", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(SuccessResponse{Message: "Movie created successfully"})
+			json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Movie created successfully"})
 			return
 		}
-		jsonError(w, "Database error", http.StatusInternalServerError)
+		util.JsonError(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	update := bson.M{"$set": bson.M{}}
@@ -123,28 +124,28 @@ func handleMoviesPost(w http.ResponseWriter, r *http.Request) {
 	if len(update["$set"].(bson.M)) > 0 {
 		result, err := filmCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
-			jsonError(w, "Failed to update movie", http.StatusInternalServerError)
+			util.JsonError(w, "Failed to update movie", http.StatusInternalServerError)
 			return
 		}
 		if result.ModifiedCount == 0 {
-			jsonError(w, "No changes made to movie", http.StatusNotModified)
+			util.JsonError(w, "No changes made to movie", http.StatusNotModified)
 			return
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SuccessResponse{Message: "Movie updated successfully"})
+	json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Movie updated successfully"})
 }
 
 func handleMoviesDelete(w http.ResponseWriter, r *http.Request) {
 	var movie Movie
 	if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
-		jsonError(w, "Invalid request body", http.StatusBadRequest)
+		util.JsonError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 	log.Printf("Movies API endpoint called with movie: %v", movie)
 	if movie.Title == "" || movie.Director == "" {
-		jsonError(w, "Title and Director are required", http.StatusBadRequest)
+		util.JsonError(w, "Title and Director are required", http.StatusBadRequest)
 		return
 	}
 	ctx := r.Context()
@@ -154,14 +155,14 @@ func handleMoviesDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := filmCollection.DeleteOne(ctx, filter)
 	if err != nil {
-		jsonError(w, "Failed to delete movie", http.StatusInternalServerError)
+		util.JsonError(w, "Failed to delete movie", http.StatusInternalServerError)
 		return
 	}
 	if result.DeletedCount == 0 {
-		jsonError(w, "Movie not found", http.StatusNotFound)
+		util.JsonError(w, "Movie not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(SuccessResponse{Message: "Movie deleted successfully"})
+	json.NewEncoder(w).Encode(util.SuccessResponse{Message: "Movie deleted successfully"})
 }
