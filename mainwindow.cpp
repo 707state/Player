@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include <QAudioOutput>
+#include <QDirIterator>
 #include <QFileDialog>
 #include <QLabel>
 #include <QSplitter>
@@ -50,11 +51,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
   // Buttons
   auto *btnLayout = new QHBoxLayout();
-  m_playPauseBtn = new QPushButton("▶", this);
-  m_randomNextBtn = new QPushButton("🔀 Next", this);
+  m_playPauseBtn = new QPushButton("П", this);
+  m_nextBtn = new QPushButton("▶|", this);
+  m_modeBtn = new QPushButton("➡ Order", this);
 
   btnLayout->addWidget(m_playPauseBtn);
-  btnLayout->addWidget(m_randomNextBtn);
+  btnLayout->addWidget(m_nextBtn);
+  btnLayout->addWidget(m_modeBtn);
 
   playerLayout->addLayout(btnLayout);
 
@@ -68,7 +71,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
   connect(m_playPauseBtn, &QPushButton::clicked, this,
           &MainWindow::onPlayPause);
-
+  connect(m_nextBtn, &QPushButton::clicked, this, &MainWindow::onNextSong);
   connect(m_progress, &QSlider::sliderMoved, this, &MainWindow::onSeek);
   connect(m_progress, &QSlider::sliderPressed,
           [this]() { m_userSeeking = true; });
@@ -83,6 +86,21 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
   connect(m_player, &QMediaPlayer::durationChanged, this,
           &MainWindow::onDurationChanged);
+  connect(m_player, &QMediaPlayer::mediaStatusChanged, this,
+          [this](QMediaPlayer::MediaStatus status) {
+            if (status == QMediaPlayer::EndOfMedia) {
+              onNextSong();
+            }
+          });
+  connect(m_modeBtn, &QPushButton::clicked, this, [this]() {
+    if (m_playMode == PlayMode::Orderly) {
+      m_playMode = PlayMode::Random;
+      m_modeBtn->setText("🔀 Random");
+    } else {
+      m_playMode = PlayMode::Orderly;
+      m_modeBtn->setText("➡ Order");
+    }
+  });
 }
 MainWindow::~MainWindow() = default;
 
@@ -94,6 +112,15 @@ void MainWindow::onLoadDirectory() {
     return;
   }
   m_treeView->setRootIndex(m_fsModel->index(dir));
+  m_playlist.clear();
+  QDirIterator it(dir, {"*.mp3", "*.flac"}, QDir::Files,
+                  QDirIterator::Subdirectories);
+  while (it.hasNext()) {
+    m_playlist << it.next();
+    qDebug()<< m_playlist.back()<<"\n";
+  }
+  m_currentIndex = -1;
+  qDebug() << "Loaded songs: " << m_playlist.size();
 }
 
 //  Double-click to play
@@ -101,7 +128,10 @@ void MainWindow::onFileDoubleClicked(const QModelIndex &index) {
   QString path = m_fsModel->filePath(index);
   if (!path.endsWith(".mp3") && !path.endsWith(".flac"))
     return;
-
+  qDebug()<<path;
+  m_currentIndex = m_playlist.indexOf(path);
+  if (m_currentIndex < 0)
+    return;
   m_player->setSource(QUrl::fromLocalFile(path));
   m_player->play();
   m_playPauseBtn->setText("❚❚");
@@ -145,4 +175,25 @@ void MainWindow::onSeek(int value) {
   if (!m_duration)
     return;
   m_player->setPosition((value * m_duration) / 1000);
+}
+
+void MainWindow::onNextSong() {
+  if (m_playlist.isEmpty())
+    return;
+
+  if (m_playMode == PlayMode::Random) {
+    m_currentIndex = QRandomGenerator::global()->bounded(m_playlist.size());
+  } else {
+    m_currentIndex++;
+    if (m_currentIndex >= m_playlist.size())
+      m_currentIndex = 0;
+  }
+
+  QString nextPath = m_playlist[m_currentIndex];
+
+  m_player->setSource(QUrl::fromLocalFile(nextPath));
+  m_player->play();
+  m_playPauseBtn->setText("❚❚");
+
+  m_coverLabel->setText("Playing:\n" + QFileInfo(nextPath).fileName());
 }
