@@ -266,6 +266,7 @@ void MainWindow::playSongAtIndex(int index) {
   m_player->play();
   m_playPauseBtn->setText("❚❚");
 
+  // --- Artwork (THIS IS WHAT YOU WERE MISSING) ---
   m_coverPixmapOriginal = loadCoverArtwork(path);
 
   if (!m_coverPixmapOriginal.isNull()) {
