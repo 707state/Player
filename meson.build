@@ -3,7 +3,7 @@ project(
   'cpp',
   version : '0.1',
   meson_version : '>= 1.3.0',
-  default_options : ['warning_level=3', 'cpp_std=c++17'],
+  default_options : ['warning_level=3', 'cpp_std=c++20'],
 )
 
 qt6=import('qt6')
@@ -11,25 +11,29 @@ qt_modules=[
     'Core',
     'Widgets',
     'Gui',
-    'Multimedia'
+    'Multimedia',
+    'Qml'
 ]
 qt6_deps=dependency('qt6',modules: qt_modules)
+qrc=qt6.compile_resources(sources: 'src/app.qrc')
 taglib_deps=dependency('taglib')
 sources=[
-    'player.cpp',
-    'mainwindow.cpp'
+    'src/player.cpp',
+    'core/playercontroller.cpp',
+    qrc
 ]
 headers=[
-    'mainwindow.h'
+    'core/playercontroller.h'
 ]
-
-moc_sources=qt6.preprocess(
+incdir=include_directories('.')
+moc_headers=qt6.preprocess(
     moc_headers: headers
 )
 
 exe = executable(
   'Player',
-  sources + moc_sources,
+  sources+moc_headers,
   install : true,
+  include_directories:incdir,
   dependencies : [qt6_deps,taglib_deps],
 )
