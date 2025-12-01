@@ -6,6 +6,15 @@
 #include <QSplitter>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include <taglib.h>
+#include <taglib/attachedpictureframe.h>
+#include <taglib/fileref.h>
+#include <taglib/flacfile.h>
+#include <taglib/flacpicture.h>
+#include <taglib/id3v2.h>
+#include <taglib/id3v2frame.h>
+#include <taglib/id3v2tag.h>
+#include <taglib/mpegfile.h>
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   // tool bar with "load directory" button
   auto *toolbar = addToolBar("Main Toolbar");
@@ -34,9 +43,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   auto *playerPanel = new QWidget(this);
   auto *playerLayout = new QVBoxLayout(playerPanel);
   // Album artwork
-  m_coverLabel = new QLabel("No Cover", this);
+  m_coverLabel = new QLabel(this);
+  m_coverLabel->setAlignment(Qt::AlignCenter);
+  m_coverLabel->setMinimumSize(240, 240);
+  m_coverLabel->setStyleSheet("background:#222;color:#aaa");
   m_coverLabel->setAlignment(Qt::AlignCenter);
   m_coverLabel->setMinimumHeight(200);
+
   playerLayout->addWidget(m_coverLabel);
 
   // Progress slider
@@ -117,7 +130,7 @@ void MainWindow::onLoadDirectory() {
                   QDirIterator::Subdirectories);
   while (it.hasNext()) {
     m_playlist << it.next();
-    qDebug()<< m_playlist.back()<<"\n";
+    qDebug() << m_playlist.back() << "\n";
   }
   m_currentIndex = -1;
   qDebug() << "Loaded songs: " << m_playlist.size();
@@ -128,16 +141,11 @@ void MainWindow::onFileDoubleClicked(const QModelIndex &index) {
   QString path = m_fsModel->filePath(index);
   if (!path.endsWith(".mp3") && !path.endsWith(".flac"))
     return;
-  qDebug()<<path;
+  qDebug() << path;
   m_currentIndex = m_playlist.indexOf(path);
   if (m_currentIndex < 0)
     return;
-  m_player->setSource(QUrl::fromLocalFile(path));
-  m_player->play();
-  m_playPauseBtn->setText("❚❚");
-
-  //  Clear cover for now (we’ll add TagLib later)
-  m_coverLabel->setText("Playing:\n" + QFileInfo(path).fileName());
+  playSongAtIndex(m_currentIndex);
 }
 
 //  Play / Pause
@@ -188,12 +196,82 @@ void MainWindow::onNextSong() {
     if (m_currentIndex >= m_playlist.size())
       m_currentIndex = 0;
   }
+  playSongAtIndex(m_currentIndex);
+}
 
-  QString nextPath = m_playlist[m_currentIndex];
+QPixmap MainWindow::loadCoverArtwork(const QString &filePath) {
+  // ---- MP3 ----
+  if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
+    TagLib::MPEG::File file(filePath.toStdString().c_str());
+    auto *tag = file.ID3v2Tag();
+    if (!tag)
+      return {};
 
-  m_player->setSource(QUrl::fromLocalFile(nextPath));
+    auto frames = tag->frameListMap()["APIC"];
+    if (frames.isEmpty())
+      return {};
+
+    auto *frame =
+        static_cast<TagLib::ID3v2::AttachedPictureFrame *>(frames.front());
+
+    QByteArray imgData(frame->picture().data(), frame->picture().size());
+
+    QPixmap pix;
+    pix.loadFromData(imgData);
+    return pix;
+  }
+  // ---- FLAC ----
+  else if (filePath.endsWith(".flac", Qt::CaseInsensitive)) {
+    TagLib::FLAC::File file(filePath.toStdString().c_str());
+    auto pics = file.pictureList();
+    if (pics.isEmpty())
+      return {};
+
+    auto *pic = pics.front();
+    QByteArray imgData(pic->data().data(), pic->data().size());
+
+    QPixmap pix;
+    pix.loadFromData(imgData);
+    return pix;
+  }
+
+  return {};
+}
+
+void MainWindow::updateCoverDisplay() {
+  if (m_coverPixmapOriginal.isNull()) {
+    m_coverLabel->clear();
+    return;
+  }
+
+  QSize targetSize = m_coverLabel->size();
+  if (targetSize.isEmpty())
+    return;
+
+  QPixmap scaled = m_coverPixmapOriginal.scaled(targetSize, Qt::KeepAspectRatio,
+                                                Qt::SmoothTransformation);
+
+  m_coverLabel->setPixmap(scaled);
+}
+
+void MainWindow::playSongAtIndex(int index) {
+  if (index < 0 || index >= m_playlist.size())
+    return;
+
+  m_currentIndex = index;
+  QString path = m_playlist[m_currentIndex];
+
+  // --- Audio ---
+  m_player->setSource(QUrl::fromLocalFile(path));
   m_player->play();
   m_playPauseBtn->setText("❚❚");
 
-  m_coverLabel->setText("Playing:\n" + QFileInfo(nextPath).fileName());
+  // --- Artwork (THIS IS WHAT YOU WERE MISSING) ---
+  m_coverPixmapOriginal = loadCoverArtwork(path);
+
+  if (!m_coverPixmapOriginal.isNull()) {
+    updateCoverDisplay(); // scale from ORIGINAL (no blur)
+  } else {
+    m_coverLabel->setText("No Cover");
+  }
 }

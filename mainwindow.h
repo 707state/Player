@@ -13,6 +13,10 @@ class MainWindow : public QMainWindow {
 public:
   explicit MainWindow(QWidget *parent = nullptr);
   ~MainWindow() override;
+  void resizeEvent(QResizeEvent *event) override {
+    QMainWindow::resizeEvent(event);
+    updateCoverDisplay();
+  }
 private slots:
   // Click button
   void onLoadDirectory();
@@ -24,6 +28,12 @@ private slots:
   void onDurationChanged(qint64 dur);
   void onSeek(int value);
   void onNextSong();
+
+private:
+  QPixmap loadCoverArtwork(const QString &filePath);
+  void updateCoverDisplay();
+  void playSongAtIndex(int);
+
 private:
   // File Browser
   QFileSystemModel *m_fsModel;
@@ -31,13 +41,14 @@ private:
   QAction *m_loadDirAction;
   // playlist
   QVector<QString> m_playlist;
-  int m_currentIndex=-1;
-  PlayMode m_playMode=PlayMode::Orderly;
+  int m_currentIndex = -1;
+  PlayMode m_playMode = PlayMode::Orderly;
   // Player Backend
   QMediaPlayer *m_player;
   QAudioOutput *m_audioOutput;
   // Player UI
   QLabel *m_coverLabel;
+  QPixmap m_coverPixmapOriginal;
   QLabel *m_timeLabel;
   QSlider *m_progress;
   QPushButton *m_playPauseBtn;

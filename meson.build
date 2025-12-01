@@ -14,7 +14,7 @@ qt_modules=[
     'Multimedia'
 ]
 qt6_deps=dependency('qt6',modules: qt_modules)
-
+taglib_deps=dependency('taglib')
 sources=[
     'player.cpp',
     'mainwindow.cpp'
@@ -31,5 +31,5 @@ exe = executable(
   'Player',
   sources + moc_sources,
   install : true,
-  dependencies : qt6_deps,
+  dependencies : [qt6_deps,taglib_deps],
 )
