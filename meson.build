@@ -3,7 +3,7 @@ project(
   'cpp',
   version : '0.1',
   meson_version : '>= 1.3.0',
-  default_options : ['warning_level=3', 'cpp_std=c++17'],
+  default_options : ['warning_level=3', 'cpp_std=c++20'],
 )
 
 qt6=import('qt6')
@@ -17,10 +17,10 @@ qt6_deps=dependency('qt6',modules: qt_modules)
 taglib_deps=dependency('taglib')
 sources=[
     'player.cpp',
-    'mainwindow.cpp'
+    'mainwindow.cpp',
 ]
 headers=[
-    'mainwindow.h'
+    'mainwindow.h',
 ]
 
 moc_sources=qt6.preprocess(

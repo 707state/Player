@@ -1,4 +1,5 @@
 #pragma once
+#include "common.h"
 #include <QFileSystemModel>
 #include <QLabel>
 #include <QMainWindow>
@@ -30,7 +31,7 @@ private slots:
   void onNextSong();
 
 private:
-  QPixmap loadCoverArtwork(const QString &filePath);
+  BasicMeta extractBasicMetadata(const QString &filePath);
   void updateCoverDisplay();
   void playSongAtIndex(int);
 
@@ -48,6 +49,7 @@ private:
   QAudioOutput *m_audioOutput;
   // Player UI
   QLabel *m_coverLabel;
+  QLabel *m_songInfo;
   QPixmap m_coverPixmapOriginal;
   QLabel *m_timeLabel;
   QSlider *m_progress;
@@ -57,4 +59,5 @@ private:
 
   qint64 m_duration = 0;
   bool m_userSeeking = false;
+  bool m_currentMetaLiked = false;
 };

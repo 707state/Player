@@ -49,39 +49,34 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   m_coverLabel->setStyleSheet("background:#222;color:#aaa");
   m_coverLabel->setAlignment(Qt::AlignCenter);
   m_coverLabel->setMinimumHeight(200);
-
   playerLayout->addWidget(m_coverLabel);
-
+  m_songInfo = new QLabel(this);
+  m_songInfo->setAlignment(Qt::AlignCenter);
+  m_songInfo->setStyleSheet("color:#aaa; font-weight:bold; font-size:16px;");
+  playerLayout->addWidget(m_songInfo);
   // Progress slider
   m_progress = new QSlider(Qt::Horizontal, this);
   m_progress->setRange(0, 1000);
   playerLayout->addWidget(m_progress);
-
   // Time label
   m_timeLabel = new QLabel("00:00 / 00:00", this);
   m_timeLabel->setAlignment(Qt::AlignCenter);
   playerLayout->addWidget(m_timeLabel);
-
   // Buttons
   auto *btnLayout = new QHBoxLayout();
   m_playPauseBtn = new QPushButton("П", this);
   m_nextBtn = new QPushButton("▶|", this);
   m_modeBtn = new QPushButton("➡ Order", this);
-
   btnLayout->addWidget(m_playPauseBtn);
   btnLayout->addWidget(m_nextBtn);
   btnLayout->addWidget(m_modeBtn);
-
   playerLayout->addLayout(btnLayout);
-
   splitter->addWidget(playerPanel);
-
   //  Audio Engine
   m_player = new QMediaPlayer(this);
   m_audioOutput = new QAudioOutput(this);
   m_player->setAudioOutput(m_audioOutput);
   m_audioOutput->setVolume(0.7);
-
   connect(m_playPauseBtn, &QPushButton::clicked, this,
           &MainWindow::onPlayPause);
   connect(m_nextBtn, &QPushButton::clicked, this, &MainWindow::onNextSong);
@@ -135,7 +130,6 @@ void MainWindow::onLoadDirectory() {
   m_currentIndex = -1;
   qDebug() << "Loaded songs: " << m_playlist.size();
 }
-
 //  Double-click to play
 void MainWindow::onFileDoubleClicked(const QModelIndex &index) {
   QString path = m_fsModel->filePath(index);
@@ -147,7 +141,6 @@ void MainWindow::onFileDoubleClicked(const QModelIndex &index) {
     return;
   playSongAtIndex(m_currentIndex);
 }
-
 //  Play / Pause
 void MainWindow::onPlayPause() {
   if (m_player->playbackState() == QMediaPlayer::PlayingState) {
@@ -199,45 +192,6 @@ void MainWindow::onNextSong() {
   playSongAtIndex(m_currentIndex);
 }
 
-QPixmap MainWindow::loadCoverArtwork(const QString &filePath) {
-  // ---- MP3 ----
-  if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
-    TagLib::MPEG::File file(filePath.toStdString().c_str());
-    auto *tag = file.ID3v2Tag();
-    if (!tag)
-      return {};
-
-    auto frames = tag->frameListMap()["APIC"];
-    if (frames.isEmpty())
-      return {};
-
-    auto *frame =
-        static_cast<TagLib::ID3v2::AttachedPictureFrame *>(frames.front());
-
-    QByteArray imgData(frame->picture().data(), frame->picture().size());
-
-    QPixmap pix;
-    pix.loadFromData(imgData);
-    return pix;
-  }
-  // ---- FLAC ----
-  else if (filePath.endsWith(".flac", Qt::CaseInsensitive)) {
-    TagLib::FLAC::File file(filePath.toStdString().c_str());
-    auto pics = file.pictureList();
-    if (pics.isEmpty())
-      return {};
-
-    auto *pic = pics.front();
-    QByteArray imgData(pic->data().data(), pic->data().size());
-
-    QPixmap pix;
-    pix.loadFromData(imgData);
-    return pix;
-  }
-
-  return {};
-}
-
 void MainWindow::updateCoverDisplay() {
   if (m_coverPixmapOriginal.isNull()) {
     m_coverLabel->clear();
@@ -265,13 +219,59 @@ void MainWindow::playSongAtIndex(int index) {
   m_player->setSource(QUrl::fromLocalFile(path));
   m_player->play();
   m_playPauseBtn->setText("❚❚");
+  BasicMeta meta = extractBasicMetadata(path);
 
-  // --- Artwork (THIS IS WHAT YOU WERE MISSING) ---
-  m_coverPixmapOriginal = loadCoverArtwork(path);
-
-  if (!m_coverPixmapOriginal.isNull()) {
-    updateCoverDisplay(); // scale from ORIGINAL (no blur)
+  // Update artwork
+  if (!meta.artwork.isNull()) {
+    m_coverPixmapOriginal = meta.artwork;
+    updateCoverDisplay();
   } else {
     m_coverLabel->setText("No Cover");
   }
+  m_songInfo->setText(
+      QString("Now Playing: %1 - %2").arg(meta.artist, meta.title));
+}
+BasicMeta MainWindow::extractBasicMetadata(const QString &filePath) {
+  BasicMeta meta;
+
+  // Fallback: file name as title
+  meta.title = QFileInfo(filePath).baseName();
+  meta.artist = "";
+  meta.album = "";
+  meta.artwork = QPixmap();
+
+  if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
+    TagLib::MPEG::File file(filePath.toStdString().c_str());
+    auto *tag = file.ID3v2Tag();
+    if (tag) {
+      meta.title = QString::fromStdString(tag->title().to8Bit(true));
+      meta.artist = QString::fromStdString(tag->artist().to8Bit(true));
+      meta.album = QString::fromStdString(tag->album().to8Bit(true));
+
+      auto frames = tag->frameListMap()["APIC"];
+      if (!frames.isEmpty()) {
+        auto *frame =
+            static_cast<TagLib::ID3v2::AttachedPictureFrame *>(frames.front());
+        QByteArray imgData(frame->picture().data(), frame->picture().size());
+        meta.artwork.loadFromData(imgData);
+      }
+    }
+  } else if (filePath.endsWith(".flac", Qt::CaseInsensitive)) {
+    TagLib::FLAC::File file(filePath.toStdString().c_str());
+    auto *tag = file.tag();
+    if (tag) {
+      meta.title = QString::fromStdString(tag->title().to8Bit(true));
+      meta.artist = QString::fromStdString(tag->artist().to8Bit(true));
+      meta.album = QString::fromStdString(tag->album().to8Bit(true));
+    }
+
+    auto pics = file.pictureList();
+    if (!pics.isEmpty()) {
+      auto *pic = pics.front();
+      QByteArray imgData(pic->data().data(), pic->data().size());
+      meta.artwork.loadFromData(imgData);
+    }
+  }
+
+  return meta;
 }
