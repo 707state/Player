@@ -18,9 +18,14 @@ taglib_deps=dependency('taglib')
 sources=[
     'player.cpp',
     'mainwindow.cpp',
+    'filebrowserwidget.cpp',
+    'musicplayerwidget.cpp',
 ]
 headers=[
     'mainwindow.h',
+    'filebrowserwidget.h',
+    'musicplayerwidget.h',
+    'common.h',
 ]
 
 moc_sources=qt6.preprocess(
