@@ -61,7 +61,7 @@ struct ContentView: View {
             SettingsView()
         }
     }
-    
+
     private func selectDirectory() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -107,19 +107,19 @@ struct PlayerPanel: View {
                 Color.gray.opacity(0.2)
                     .ignoresSafeArea()
             }
-            
+
             // 前景层：播放器内容
             VStack(spacing: 20) {
                 if let artwork = player.artwork {
                     Image(nsImage: artwork)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: imageSize.width,height: imageSize.height)
+                        .frame(width: imageSize.width, height: imageSize.height)
                         .cornerRadius(10)
                         .shadow(radius: 4)
                         .overlay(
-                            ZStack{
-                                if (isHovering){
+                            ZStack {
+                                if isHovering {
                                     // 加一个右下角的“拖拽角标”
                                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                                         .foregroundColor(.gray)
@@ -127,9 +127,11 @@ struct PlayerPanel: View {
                                         .background(Color.white.opacity(0.7))
                                         .cornerRadius(6)
                                         .padding(6)
-                                        .gesture(resizeGesture) // 拖动角标调整大小
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                                    
+                                        .gesture(resizeGesture)  // 拖动角标调整大小
+                                        .frame(
+                                            maxWidth: .infinity, maxHeight: .infinity,
+                                            alignment: .bottomTrailing)
+
                                 }
                             }
                         )
@@ -145,14 +147,14 @@ struct PlayerPanel: View {
                         .frame(width: 120, height: 120)
                         .opacity(0.3)
                 }
-                
+
                 if let currentItem = player.currentFile {
                     Text("Now playing：\(currentItem.lastPathComponent)")
                         .font(.headline)
                 } else {
                     Text("Please select an mp3/flac file")
                 }
-                
+
                 // 播放进度滑杆
                 Slider(
                     value: Binding(
@@ -162,14 +164,14 @@ struct PlayerPanel: View {
                     in: 0...(player.duration)
                 )
                 .disabled(player.currentFile == nil)
-                
+
                 HStack {
                     Text(formatTime(player.currentTime))
                     Spacer()
                     Text(formatTime(player.duration))
                 }
                 .font(.caption)
-                
+
                 HStack(spacing: 40) {
                     Button {
                         if player.isPlaying {
@@ -180,15 +182,15 @@ struct PlayerPanel: View {
                     } label: {
                         Image(
                             systemName: player.isPlaying
-                            ? "pause.fill" : "play.fill"
+                                ? "pause.fill" : "play.fill"
                         )
                     }
                     Button {
-                        player.stop()
+                        player.toggleShuffleMode()
                     } label: {
-                        Image(systemName: "stop.fill")
+                        Image(systemName: player.isShuffleEnabled ? "shuffle" : "list.number")
                     }
-                    
+
                     Button {
                         player.playNext()
                     } label: {
@@ -202,7 +204,7 @@ struct PlayerPanel: View {
                             .foregroundStyle(player.isLiked ? .red : .primary)
                     }
                 }
-                
+
                 // 音量控制
                 Slider(value: $player.volume, in: 0...1)
                     .frame(width: 120, height: 20)

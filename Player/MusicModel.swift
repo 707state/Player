@@ -5,8 +5,9 @@
 //  Created by jask on 2025/9/18.
 //
 import AVFoundation
-import Foundation
 import AppKit
+import Foundation
+
 struct FileNode: Identifiable {
     let id = UUID()
     let url: URL
@@ -14,10 +15,10 @@ struct FileNode: Identifiable {
     var children: [FileNode]?
 }
 
-class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
+class MusicModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
     // Only one MusicModel in this app!
     static let shared = MusicModel()
-    
+
     @Published var rootNode: FileNode?
     @Published var currentFile: URL?
     @Published var isPlaying = false
@@ -28,25 +29,26 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             player?.volume = volume
         }
     }
-    @Published var artwork: NSImage?=nil
+    @Published var artwork: NSImage? = nil
     @Published var single: String = ""
     @Published var album: String = ""
     @Published var artist: String = ""
     @Published var isLiked: Bool = false
-    
+    @Published var isShuffleEnabled: Bool = false
+
     private var player: AVAudioPlayer?
     private var timer: Timer?
-    
+
     // Flattend file list for next play
     private var allFiles: [URL] = []
     // Recursive
     func loadDirectoryTree(url: URL) {
-        let url_=url;
+        let url_ = url
         DispatchQueue.global(qos: .userInitiated).async {
             let root = self.buildNode(for: url_)
             DispatchQueue.main.async {
                 self.rootNode = root
-                self.allFiles=self.collectAllFiles(from: root)
+                self.allFiles = self.collectAllFiles(from: root)
             }
         }
     }
@@ -59,18 +61,19 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             return [node.url]
         }
     }
-    
+
     func buildNode(for url: URL) -> FileNode {
         var children: [FileNode] = []
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-        
+
         if isDir.boolValue {
             if let items = try? FileManager.default.contentsOfDirectory(
                 at: url,
                 includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]) {
-                
+                options: [.skipsHiddenFiles])
+            {
+
                 for item in items {
                     // 只收录文件夹 或 mp3/flac 文件
                     var isChildDir: ObjCBool = false
@@ -86,14 +89,15 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
                 }
             }
         }
-        return FileNode(url: url, isDirectory: isDir.boolValue,
-                        children: children.isEmpty ? nil : children)
+        return FileNode(
+            url: url, isDirectory: isDir.boolValue,
+            children: children.isEmpty ? nil : children)
     }
     func play(file: URL) {
         stop()
         do {
             let data = try Data(contentsOf: file, options: .mappedIfSafe)
-            
+
             // Step 2: 使用内存数据初始化 AVAudioPlayer
             player = try AVAudioPlayer(data: data)
             player?.delegate = self
@@ -118,44 +122,58 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
             print("Failed to play:", error)
         }
     }
-    
+
     func pause() {
         player?.pause()
         isPlaying = false
     }
-    
+
     func resume() {
         player?.play()
         isPlaying = true
     }
-    
+
     func playNext() {
         guard !allFiles.isEmpty else { return }
-        var nextFile: URL
-        repeat {
-            nextFile = allFiles.randomElement()!
-        } while nextFile == currentFile && allFiles.count > 1
-        play(file: nextFile)
-    }
-    
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        if flag {
-            playNext() //Automatically play next song
+        if isShuffleEnabled {
+            var nextFile: URL
+            repeat {
+                nextFile = allFiles.randomElement()!
+            } while nextFile == currentFile && allFiles.count > 1
+            play(file: nextFile)
+            return
+        }
+
+        if let currentFile, let index = allFiles.firstIndex(of: currentFile) {
+            let nextIndex = (index + 1) % allFiles.count
+            play(file: allFiles[nextIndex])
+        } else {
+            play(file: allFiles[0])
         }
     }
-    
+
+    func toggleShuffleMode() {
+        isShuffleEnabled.toggle()
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        if flag {
+            playNext()
+        }
+    }
+
     func stop() {
         player?.stop()
         isPlaying = false
         currentTime = 0
         stopTimer()
     }
-    
+
     func seek(to time: TimeInterval) {
         player?.currentTime = time
         currentTime = time
     }
-    
+
     private func startTimer() {
         let queue = DispatchQueue(label: "music.timer")
         queue.async {
@@ -174,30 +192,47 @@ class MusicModel: NSObject,ObservableObject, AVAudioPlayerDelegate{
     }
 }
 
-extension MusicModel{
-    // MARK: - Metadata
-    struct BasicMeta { let title: String; let artist: String; let album: String; let artwork: NSImage? }
+extension MusicModel {
+    struct BasicMeta {
+        let title: String
+        let artist: String
+        let album: String
+        let artwork: NSImage?
+    }
     func extractBasicMetadata(from url: URL) async throws -> BasicMeta {
         let asset = AVURLAsset(url: url)
         var title = url.deletingPathExtension().lastPathComponent
         var artist = ""
         var album = ""
-        var artwork: NSImage?=nil
+        var artwork: NSImage? = nil
         for format in try await asset.load(.availableMetadataFormats) {
             let metadata = try await asset.loadMetadata(for: format)
             for item in metadata {
-                if item.commonKey == .commonKeyTitle, let t = try? await item.load(.stringValue), !t.isEmpty { title = t }
-                if item.commonKey == .commonKeyArtist, let a = try? await item.load(.stringValue), !a.isEmpty { artist = a }
-                if item.commonKey == .commonKeyAlbumName, let al = try? await item.load(.stringValue), !al.isEmpty { album = al }
-                if item.commonKey == .commonKeyArtwork{
+                if item.commonKey == .commonKeyTitle, let t = try? await item.load(.stringValue),
+                    !t.isEmpty
+                {
+                    title = t
+                }
+                if item.commonKey == .commonKeyArtist, let a = try? await item.load(.stringValue),
+                    !a.isEmpty
+                {
+                    artist = a
+                }
+                if item.commonKey == .commonKeyAlbumName,
+                    let al = try? await item.load(.stringValue), !al.isEmpty
+                {
+                    album = al
+                }
+                if item.commonKey == .commonKeyArtwork {
                     if let data = try? await item.load(.dataValue) {
                         if let image = NSImage(data: data) {
                             artwork = image
                         }
                     }
-                    
+
                     if let dict = try? await item.load(.value) as? [String: Any],
-                       let data = dict["data"] as? Data {
+                        let data = dict["data"] as? Data
+                    {
                         if let image = NSImage(data: data) {
                             artwork = image
                         }
@@ -205,13 +240,15 @@ extension MusicModel{
                 }
             }
         }
-        return BasicMeta(title: title, artist: artist, album: album,artwork: artwork)
+        return BasicMeta(title: title, artist: artist, album: album, artwork: artwork)
     }
 }
 
 // MARK: - Backend integration
 extension MusicModel {
-    private func logNetworkError(context: String, url: URL?, response: URLResponse?, data: Data?, error: Error?) {
+    private func logNetworkError(
+        context: String, url: URL?, response: URLResponse?, data: Data?, error: Error?
+    ) {
         print("[Network] Context=\(context)")
         if let url { print("[Network] URL=\(url.absoluteString)") }
         if let http = response as? HTTPURLResponse {
@@ -246,29 +283,37 @@ extension MusicModel {
             return
         }
         // Query by album + one artist
-        let oneArtist = buildArtistsArray(from: artist).joined(separator:",")
-        var comps = URLComponents(url: base.appendingPathComponent("/single"), resolvingAgainstBaseURL: false)!
+        let oneArtist = buildArtistsArray(from: artist).joined(separator: ",")
+        var comps = URLComponents(
+            url: base.appendingPathComponent("/single"), resolvingAgainstBaseURL: false)!
         comps.queryItems = [
             URLQueryItem(name: "album", value: album),
             URLQueryItem(name: "artists", value: oneArtist),
-            URLQueryItem(name:"title",value: single),
+            URLQueryItem(name: "title", value: single),
         ]
-        guard let url = comps.url else { self.isLiked = false; return }
+        guard let url = comps.url else {
+            self.isLiked = false
+            return
+        }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                 if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let exists = obj["exists"] as? Bool {
+                    let exists = obj["exists"] as? Bool
+                {
                     self.isLiked = exists
                 } else {
                     self.isLiked = false
                 }
             } else {
-                logNetworkError(context: "checkLikeStatus", url: url, response: response, data: data, error: nil)
+                logNetworkError(
+                    context: "checkLikeStatus", url: url, response: response, data: data, error: nil
+                )
                 self.isLiked = false
             }
         } catch {
-            logNetworkError(context: "checkLikeStatus", url: url, response: nil, data: nil, error: error)
+            logNetworkError(
+                context: "checkLikeStatus", url: url, response: nil, data: nil, error: error)
             self.isLiked = false
         }
     }
@@ -291,10 +336,13 @@ extension MusicModel {
                 if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
                     await MainActor.run { self.isLiked.toggle() }
                 } else {
-                    logNetworkError(context: "toggleLike", url: request.url, response: response, data: data, error: nil)
+                    logNetworkError(
+                        context: "toggleLike", url: request.url, response: response, data: data,
+                        error: nil)
                 }
             } catch {
-                logNetworkError(context: "toggleLike", url: nil, response: nil, data: nil, error: error)
+                logNetworkError(
+                    context: "toggleLike", url: nil, response: nil, data: nil, error: error)
             }
         }
     }
