@@ -34,7 +34,7 @@ class MusicModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var album: String = ""
     @Published var artist: String = ""
     @Published var isLiked: Bool = false
-    @Published var isShuffleEnabled: Bool = false
+    @Published var playMode: PlayMode = .inOrder
 
     private var player: AVAudioPlayer?
     private var timer: Timer?
@@ -135,7 +135,7 @@ class MusicModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     func playNext() {
         guard !allFiles.isEmpty else { return }
-        if isShuffleEnabled {
+        if playMode == .shuffle {
             var nextFile: URL
             repeat {
                 nextFile = allFiles.randomElement()!
@@ -153,11 +153,24 @@ class MusicModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
 
     func toggleShuffleMode() {
-        isShuffleEnabled.toggle()
+        switch playMode {
+        case .inOrder:
+            playMode = .shuffle
+        case .shuffle:
+            playMode = .singleLoop
+        case .singleLoop:
+            playMode = .inOrder
+        }
     }
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         if flag {
+            if playMode == .singleLoop {
+                player.currentTime = 0
+                player.play()
+                isPlaying = true
+                return
+            }
             playNext()
         }
     }
@@ -189,6 +202,14 @@ class MusicModel: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+}
+
+extension MusicModel {
+    enum PlayMode: String {
+        case inOrder
+        case shuffle
+        case singleLoop
     }
 }
 

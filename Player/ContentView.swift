@@ -57,6 +57,12 @@ struct ContentView: View {
                 }
             }
         }
+        .toolbarBackground(.ultraThinMaterial, for: .windowToolbar)
+        .toolbarBackground(.visible, for: .windowToolbar)
+        .safeAreaInset(edge: .top) {
+            Divider()
+                .background(.separator)   // 更接近系统分隔线质感
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
@@ -188,7 +194,7 @@ struct PlayerPanel: View {
                     Button {
                         player.toggleShuffleMode()
                     } label: {
-                        Image(systemName: player.isShuffleEnabled ? "shuffle" : "list.number")
+                        Image(systemName: shuffleIconName())
                     }
 
                     Button {
@@ -211,6 +217,17 @@ struct PlayerPanel: View {
                     .padding(.horizontal, 4)
             }
             .padding()
+        }
+    }
+
+    private func shuffleIconName() -> String {
+        switch player.playMode {
+        case .inOrder:
+            return "list.number"
+        case .shuffle:
+            return "shuffle"
+        case .singleLoop:
+            return "repeat.1"
         }
     }
     /// 拖动调整大小的手势
